@@ -77,6 +77,19 @@
 4. 选择文件夹：`C:\AIwork\xuexitong-llm-helper`
 5. 工具栏出现奶娃头像图标，卡片上显示「学习通-无敌智慧奶娃学习助手 0.4.4」
 
+<p align="center">
+  <img src="docs/screenshots/01-devmode.png" width="420" alt="开发者模式开关">
+</p>
+
+<p align="center"><sub>「开发者模式」必须在右上角打开，否则看不到「加载已解压的扩展程序」按钮。</sub></p>
+
+<p align="center">
+  <img src="docs/screenshots/02-card.png" width="620" alt="扩展卡片">
+</p>
+
+<p align="center"><sub>加载成功后的卡片：奶娃头像 + 版本号。版本号变了就说明刷新生效了。</sub></p>
+
+
 > **改过代码之后**：回到 `chrome://extensions`，点扩展卡片上的圆形**刷新**按钮，然后回学习通页面按 **F5**。两步都要做——只刷新扩展不刷新页面，旧脚本还在页面里跑。
 > **不要把「移除」当成刷新**，那会丢掉设置里已保存的 API Key。
 
@@ -98,6 +111,13 @@
 - **只读档** —— 只解析并把答案显示在面板「题目」标签里，**不填入、不提交**。第一次用建议先跑这个，看看模型答得准不准。
 - **半自动（默认）** —— 自动填入所有答案，**最后提交由你手动点**，面板底部会亮出「提交」按钮。
 - **全自动** —— 预估分达标后直接提交；不达标带着课件内容重答。
+
+<p align="center">
+  <img src="docs/screenshots/03-options-top.png" width="760" alt="设置页：自动化档位与作答参数">
+</p>
+
+<p align="center"><sub>设置页上半部分：三个档位单选、代播与宽松两个开关、以及作答参数。</sub></p>
+
 
 ---
 ## 四、使用说明
@@ -280,6 +300,13 @@
 
 **可以配多条通道**，用左侧单选钮切换当前用哪条。比如平时用便宜的 flash 模型，难题切到贵的；交叉校验则指定另一条通道。
 
+<p align="center">
+  <img src="docs/screenshots/04-channel.png" width="860" alt="模型通道设置">
+</p>
+
+<p align="center"><sub>「模型通道」卡片：预设下拉会一键填好 Base URL 与模型名，其余只需填 API Key。</sub></p>
+
+
 ---
 ## 七、常见问题
 
@@ -287,7 +314,7 @@
 先确认地址是 `/mycourse/studentstudy`。题目和视频常在 iframe 里，扩展已配置 `all_frames`，但如果页面刚打开还没渲染完，等 2 秒。仍没有就 F5。
 
 **怎么确认我改的代码生效了？**
-看第一行日志的版本号：`助手已加载 v0.4.3 · …`。没有版本号或版本号是旧的，说明 `chrome://extensions` 里没点刷新。
+看第一行日志的版本号：`助手已加载 v0.4.4 · …`。没有版本号或版本号是旧的，说明 `chrome://extensions` 里没点刷新。
 
 **两个面板叠在一起？**
 旧版本的遗留问题，0.3 之后框架里不再建面板。还出现就刷新扩展 + F5。
@@ -334,6 +361,10 @@ xuexitong-llm-helper/
 │   └── main.js          主逻辑：面板、扫描、解析、作答、提交、播放队列、编程题
 ├── options.html/js      完整设置页
 ├── popup.html/js        工具栏小弹窗（切档位）
+├── assets/wallpaper.jpg 面板与设置页的奶娃壁纸
+├── icons/               16/32/48/128 图标（奶娃头像）
+├── docs/screenshots/    README 里用到的界面截图
+├── DISCLAIMER.md        免责声明（单独一份，转载时请一并带上）
 └── README.md
 ```
 
@@ -386,6 +417,7 @@ robocopy C:\AIwork\_lh_backup_v043 C:\AIwork\xuexitong-llm-helper /MIR
 
 | 版本 | 主要内容 |
 | --- | --- |
+| 0.4.4 | 奶娃主题：面板壁纸、头像图标、改名；README 补入界面截图 |
 | 0.4.3 | 编程题改为手动选语言 + 等待检测；新增编程语言设置项 |
 | 0.4.0 | 新增「AI实践 / 在线编程题」通路：读题、写码、自测、改错、评估 |
 | 0.3.28 | 新增交叉校验模型、真实成绩回读（不再只信预估分） |
