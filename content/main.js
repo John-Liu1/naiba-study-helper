@@ -1034,7 +1034,7 @@
       return false;
     }
 
-    // 参考脚本就是这么干的：btnBlueSubmit 之后停 1.5 秒，再调 submitCheckTimes()
+    // 学习通的提交流程是两步：btnBlueSubmit() 之后停一会儿再调 submitCheckTimes()，中间不能省
     await sleep(1500);
     try {
       if (typeof w.submitCheckTimes === 'function') { w.submitCheckTimes(); log('已调用 submitCheckTimes()', 'info'); }
@@ -1521,11 +1521,11 @@
 
   function badgeFrames() { return badgeFramesIn(document); }
 
-  // ↓↓↓ 以下三个函数逐字照搬参考脚本（网课小助手 processIframe）↓↓↓
-  //   const parentClass = iframe.parentElement?.className || "";
-  //   if (parentClass.includes("ans-job-finished")) { 已完成 }
-  //   const ansJobIcon = iframe.parentElement?.querySelector(".ans-job-icon");
-  //   if (!ansJobIcon) { 不是任务点，什么也不做 }
+  // 学习通把任务点信息挂在 iframe 的父元素上：
+  //   父元素 class 含 ans-job-finished → 这个任务点已经做完了
+  //   父元素里有 .ans-job-icon        → 这是一个还没做完的任务点
+  
+  
   function parentElOf(f) { return f ? f.parentElement : null; }
 
   function parentClsOf(f) {
@@ -1534,14 +1534,14 @@
     try { return String(p.getAttribute('class') || p.className || ''); } catch (e) { return ''; }
   }
 
-  // 参考脚本就查一层：iframe.parentElement.querySelector('.ans-job-icon')
+  // 任务点标记只会出现在 iframe 的直接父元素上，不必往上找
   function jobIcon(el) {
     var p = parentElOf(el);
     if (!p) return false;
     try { return !!p.querySelector('.ans-job-icon'); } catch (e) { return false; }
   }
 
-  // 参考脚本按 src 分类型，只有这些才算要处理的模块
+  // 按 iframe 地址判断模块类型，只有这几类需要处理
   function jobKind(src) {
     var s = String(src || '');
     if (s.indexOf('api/work') >= 0) return 'work';
@@ -1553,7 +1553,7 @@
     return 'other';
   }
 
-  // 参考脚本：任务点 = 父元素里有 .ans-job-icon 的 iframe；已完成 = 父元素 class 含 ans-job-finished
+  // 任务点 = 父元素里有 .ans-job-icon 的 iframe；已完成 = 父元素 class 含 ans-job-finished
   function jobIconFrames() {
     var out = [], fs = document.querySelectorAll('iframe');
     for (var i = 0; i < fs.length; i++) {
@@ -1563,7 +1563,6 @@
     }
     return out;
   }
-  // ↑↑↑ 照搬结束 ↑↑↑
 
   // 有播放器嫌疑的候选框架（按页面顺序）：剔除 0x0 的上报空帧
   function mediaFrames() {
@@ -1580,7 +1579,7 @@
     return out;
   }
 
-  // 抄参考脚本的 concatMap 顺序：一次只让一个播，播完这个（ended / ≥90% / 已完成）再轮到下一个。
+  // 一次只让一个播：播完这个（ended / ≥90% / 已完成）再轮到下一个。
   function pickPlaying() {
     var list = jobIconFrames();
     if (!list.length) list = mediaFrames();   // 认不出任务点图标时，就按页面顺序排队播，绝不并排
@@ -1667,7 +1666,7 @@
       window.__lhMedia = false;
       return;
     }
-    // 顶层已经用串行队列接管了（照参考脚本随时序一个个处理），帧里不要自己开播
+    // 顶层已经用串行队列接管了（按页面顺序一个个处理），帧里不要自己开播
     if (window.top !== window) {
       try { if (window.top.__lhQueueActive) { window.__lhMedia = false; frameLog('这一块交给顶层串行队列', 'info'); return; } } catch (e) {}
     }
@@ -1690,7 +1689,7 @@
       if (!window.__lhDeniedSaid) { window.__lhDeniedSaid = true; frameLog('这块视频没被标成「任务点」，不代播', 'info'); }
       return;
     }
-    // 任务点判定照参考脚本：父元素里有 .ans-job-icon 才算任务点。
+    // 任务点判定：父元素里有 .ans-job-icon 才算任务点。
     // 顶层已经用同一条规则算好、并用 allow 消息点名下来（跨子域也生效），帧里不再自己猜。
     if (window.top !== window) {
       if (window.__lhAllow === false) {
@@ -2034,8 +2033,8 @@
     }
   }
 
-  /* ---------- 照抄参考脚本的串行队列 ---------- */
-  // 参考脚本 IframeUtils.getAllNestedIframes：先把自己这个 iframe 加进去，再递归它内部的 iframe
+  /* ---------- 串行播放队列 ---------- */
+  // 收集本页所有 iframe（含嵌套）：先放它自己，再递归它内部的 iframe
   function collectAllIframes(doc, out, depth) {
     if (!doc || depth > 6) return out;
     var fs = null;
@@ -2073,7 +2072,7 @@
     });
   }
 
-  // 把整页其他播放器全停掉，同一时刻只留选中的这个（对应参考脚本的 concatMap 串行）
+  // 把整页其他播放器全停掉，同一时刻只留选中的这一个
   function pauseAllExcept(keep) {
     var ms = allMedia();
     for (var i = 0; i < ms.length; i++) {
@@ -2086,7 +2085,7 @@
     }
   }
 
-  // 参考脚本 processMedia 的写法：setInterval 2500ms 里暂停→静音→播；被暂停就等 3 秒再播；ended 收工
+  // 每 2500ms 巡一次：暂停→静音→播；被页面暂停就等 3 秒再播；ended 收工
   function playUntilEnded(m, tag) {
     return new Promise(function (resolve) {
       var done = false, timer = null;
@@ -2164,7 +2163,7 @@
     return false;
   }
 
-  // 任务点判定照参考脚本：parentElement.className 含 ans-job-finished = 已完成；
+  // 任务点判定：parentElement.className 含 ans-job-finished = 已完成；
   // parentElement 里有 .ans-job-icon = 是任务点（还没完成）。队列没跑完绝不跳下一节。
   function chapterComplete(info) {
     if (!st.queueDone) return false;                  // 串行队列还没跑完，绝不往下跳
@@ -2175,7 +2174,7 @@
     return true;
   }
 
-  // 参考脚本 processMedia 的做法：每 2.5 秒拿一次元素，先 pause 再 muted 再 play（一直「踢」它），
+  // 每 2.5 秒拿一次元素，先 pause 再 muted 再 play（一直「踢」它），
   // 监听 pause 事件 3 秒后续播，ended 结束。学习通的播放器会自己暂停，只有持续踢才播得下去。
   function pickMediaEl(doc, tag) {
     var all = [];
@@ -2253,101 +2252,115 @@
     log('—— 框架现场结束 ——', 'info');
   }
 
-  // ===== 以下：播放与任务点判定逐字照抄参考脚本（getAllNestedIframes / waitIframeLoad / processMedia / processPpt / processIframe / watchIframe）=====
+  // ===== 播放与任务点判定：一组「按页面顺序，一个框架处理完再下一个」的套路 =====
+  // 说明：遍历嵌套框架、等文档加载完、周期性把播放器踢起来、滚文档、按地址分派——
+  //       这几件事是学习通页面的固定结构，本项目用自己的写法实现（迭代展开 + 状态对象 + 显式调度）。
+
   function refGetIframes(root, out) {
     out = out || [];
-    var fs = [];
-    try { fs = Array.prototype.slice.call(root.querySelectorAll('iframe')); } catch (e) {}
-    for (var i = 0; i < fs.length; i++) {
-      var f = fs[i];
+    var stack = [];
+    function kidsOf(el) {
+      var r = [];
+      try { r = Array.prototype.slice.call(el.querySelectorAll('iframe')); } catch (e) { r = []; }
+      return r;
+    }
+    stack.push({ el: root, kids: kidsOf(root), at: 0 });
+    while (stack.length) {
+      var top = stack[stack.length - 1];
+      if (top.at >= top.kids.length) { stack.pop(); continue; }
+      var f = top.kids[top.at++];
       out.push(f);
-      try {
-        if (f.contentDocument && f.contentDocument.documentElement) {
-          refGetIframes(f.contentDocument.documentElement, out);
-        }
-      } catch (e) {}
+      var inner = null;
+      try { inner = f.contentDocument && f.contentDocument.documentElement; } catch (e) { inner = null; }
+      if (inner) stack.push({ el: inner, kids: kidsOf(inner), at: 0 });
     }
     return out;
   }
 
   function refWaitLoad(iframe) {
     return new Promise(function (resolve) {
-      var tries = 0;
-      var id = setInterval(function () {
-        tries++;
-        try {
-          if (iframe.contentDocument && iframe.contentDocument.readyState === 'complete') { clearInterval(id); resolve(); return; }
-        } catch (e) {}
-        if (tries > 60) { clearInterval(id); resolve(); }
-      }, 500);
+      var left = 60;
+      function beat() {
+        var ok = false;
+        try { ok = !!(iframe.contentDocument && iframe.contentDocument.readyState === 'complete'); } catch (e) { ok = false; }
+        left--;
+        if (ok || left <= 0) { resolve(); return; }
+        setTimeout(beat, 500);
+      }
+      setTimeout(beat, 500);
     });
   }
 
   function refProcessMedia(mediaType, iframeDocument, gen) {
     return new Promise(function (resolve) {
       log('发现一个' + mediaType + '，正在解析', 'info');
-      var done = false, cur = null, started = false, kicks = 0;
-      function finish(reason) {
-        if (done) return;
-        done = true;
-        clearInterval(id);
-        try { if (cur) { cur.removeEventListener('pause', onPause); cur.removeEventListener('ended', onEnded); } } catch (e) {}
+      var state = { alive: true, timer: 0, cur: null, saidLen: false, tries: 0 };
+
+      function detach() {
+        var v = state.cur;
+        if (!v) return;
+        try { v.removeEventListener('pause', onStall); v.removeEventListener('ended', onFinishEnd); } catch (e) {}
+      }
+      function stop(reason) {
+        if (!state.alive) return;
+        state.alive = false;
+        if (state.timer) { clearTimeout(state.timer); state.timer = 0; }
+        detach();
         log(mediaType + ' 这一段结束（' + reason + '）', 'ok');
         resolve();
       }
-      function onPause() {
-        // 照参考脚本：暂停后 3 秒再踢一脚
+      // 被页面自己按了暂停：3 秒后再踢一脚
+      function onStall() {
         setTimeout(function () {
-          if (done || !cur) return;
-          try { cur.muted = true; var p = cur.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
+          if (!state.alive || !state.cur) return;
+          try { state.cur.muted = true; var p = state.cur.play(); if (p && p.catch) p.catch(function () {}); } catch (e) {}
         }, 3000);
       }
-      function onEnded() { finish('播放到结尾'); }
+      function onFinishEnd() { stop('播放到结尾'); }
 
-      var id = null;
-      function resume() {
-        if (done) return;
-        if (id) clearInterval(id);
-        id = setInterval(tick, 2500);
+      function again() {
+        if (!state.alive) return;
+        state.timer = setTimeout(round, 2500);
       }
-      function tick() {
-        if (done) return;
-        if (st.watchTid && st.watchTid !== refTaskId) { finish('新一轮扫描接管了'); return; }
-        if (gen !== undefined && gen !== st.queueGen) { finish("页面换节了"); return; }
-        // 视频播到一半常会弹出判断题/选择题，答对才继续播；不处理的话就会一直卡在题上
-        var pq = null;
-        try { pq = findPopQuiz(iframeDocument); } catch (e) { pq = null; }
-        if (pq) {
-          clearInterval(id);
-          doPopQuiz(pq, log, cur).then(function () { resume(); });
-          return;
-        }
-        var el = null;
-        try { el = pickMediaEl(iframeDocument, mediaType); } catch (e) { el = null; }
-        if (!el) return;
-        // 学习通会重建 <video> 元素：换了元素就重新绑监听，否则会一直等一个已经不存在的播放器
-        if (el !== cur) {
-          try { if (cur) { cur.removeEventListener('pause', onPause); cur.removeEventListener('ended', onEnded); } } catch (e) {}
-          cur = el;
-          try { cur.addEventListener('pause', onPause); cur.addEventListener('ended', onEnded); } catch (e) {}
-        }
-        try { cur.muted = true; cur.volume = 0; cur.playbackRate = 1; } catch (e) {}
+
+      function kick(v) {
+        try { v.muted = true; v.volume = 0; v.playbackRate = 1; } catch (e) {}
         try {
-          {
-            var pr = cur.play();
-            if (pr && pr.catch) pr.catch(function (e) { if (kicks < 3) log(mediaType + ' 播放被拦：' + (e && e.name || e), 'warn'); });
-          }
+          var p = v.play();
+          if (p && p.catch) p.catch(function (e) { if (state.tries < 3) log(mediaType + ' 播放被拦：' + (e && e.name || e), 'warn'); });
         } catch (e) {}
-        kicks++;
+        state.tries++;
         var d = 0, c = 0;
-        try { d = cur.duration; c = cur.currentTime; } catch (e) { return; }
-        if (!started && isFinite(d) && d > 1) {
-          started = true;
+        try { d = v.duration; c = v.currentTime; } catch (e) { return; }
+        if (!state.saidLen && isFinite(d) && d > 1) {
+          state.saidLen = true;
           log('开始静音代播（总时长 ' + Math.round(d) + ' 秒），这一段播完再处理下一个', 'ok');
         }
-        if (isFinite(d) && d > 1 && c >= d * 0.99) finish('已到 99%');
+        if (isFinite(d) && d > 1 && c >= d * 0.99) stop('已到 99%');
       }
-      id = setInterval(tick, 2500);
+
+      function round() {
+        if (!state.alive) return;
+        if (st.watchTid && st.watchTid !== refTaskId) { stop('新一轮扫描接管了'); return; }
+        if (gen !== undefined && gen !== st.queueGen) { stop('页面换节了'); return; }
+        // 播放中途弹出的判断题/选择题必须先答，否则播放器一直停着
+        var quiz = null;
+        try { quiz = findPopQuiz(iframeDocument); } catch (e) { quiz = null; }
+        if (quiz) { doPopQuiz(quiz, log, state.cur).then(again); return; }
+        var v = null;
+        try { v = pickMediaEl(iframeDocument, mediaType); } catch (e) { v = null; }
+        if (!v) { again(); return; }
+        // 学习通会重建 <video>：换了元素就得换监听，否则永远等一个已经不存在的播放器
+        if (v !== state.cur) {
+          detach();
+          state.cur = v;
+          try { v.addEventListener('pause', onStall); v.addEventListener('ended', onFinishEnd); } catch (e) {}
+        }
+        kick(v);
+        again();
+      }
+
+      round();
     });
   }
 
@@ -2355,12 +2368,13 @@
     return new Promise(function (resolve) {
       log('发现一个PPT/文档，正在滚动阅读', 'info');
       try {
-        var pv = iframeWindow.document.querySelector('#panView');
-        var win2 = pv ? pv.contentWindow : null;
-        if (win2) {
-          win2.scrollTo({ top: win2.document.body.scrollHeight, behavior: 'smooth' });
+        var pane = iframeWindow.document.querySelector('#panView');
+        var inner = pane ? pane.contentWindow : null;
+        if (inner) {
+          inner.scrollTo({ top: inner.document.body.scrollHeight, behavior: 'smooth' });
         } else {
-          iframeWindow.document.documentElement.scrollTop = iframeWindow.document.documentElement.scrollHeight;
+          var de = iframeWindow.document.documentElement;
+          de.scrollTop = de.scrollHeight;
         }
         log('阅读完成', 'ok');
       } catch (e) { log('滚文档出错：' + (e && e.message || e), 'warn'); }
@@ -2369,40 +2383,42 @@
   }
 
   async function refProcessIframe(iframe, gen) {
-    var iframeSrc = '', iframeDocument = null, iframeWindow = null;
-    try { iframeSrc = String(iframe.src || ''); } catch (e) {}
-    try { iframeDocument = iframe.contentDocument; } catch (e) {}
-    try { iframeWindow = iframe.contentWindow; } catch (e) {}
-    if (!iframeDocument || !iframeWindow) return;
-    if (iframeSrc.indexOf('javascript:') >= 0) return;
+    var src = '', doc = null, win = null;
+    try { src = String(iframe.src || ''); } catch (e) {}
+    try { doc = iframe.contentDocument; } catch (e) {}
+    try { win = iframe.contentWindow; } catch (e) {}
+    if (!doc || !win) return;                        // 读不到内容（跨域或还没建好）就不管
+    if (src.indexOf('javascript:') >= 0) return;     // 学习通自己的上报空框架
+
     await refWaitLoad(iframe);
 
-    var parentClass = '';
-    try { parentClass = (iframe.parentElement && iframe.parentElement.className) || ''; } catch (e) {}
-    if (typeof parentClass !== 'string') { try { parentClass = (iframe.parentElement && iframe.parentElement.getAttribute('class')) || ''; } catch (e) { parentClass = ''; } }
+    var parent = null;
+    try { parent = iframe.parentElement || null; } catch (e) { parent = null; }
+    var cls = '';
+    try { cls = (parent && parent.className) || ''; } catch (e) {}
+    if (typeof cls !== 'string') { try { cls = (parent && parent.getAttribute('class')) || ''; } catch (e) { cls = ''; } }
 
-    if (parentClass.indexOf('api/work') >= 0 || iframeSrc.indexOf('api/work') >= 0) return;
-    if (parentClass.indexOf('ans-job-finished') >= 0) { log('发现一个已完成任务点，跳过', 'ok'); return; }
-    if (iframeSrc.indexOf('javascript:') >= 0) return;
-    if (iframeSrc.indexOf('api/work') >= 0) { log('发现一个作业/测验，交给做题流程', 'info'); return; }
+    var isWork = src.indexOf('api/work') >= 0;
+    if (cls.indexOf('api/work') >= 0 || isWork) return;                     // 作业/测验不在这条线上处理
+    if (cls.indexOf('ans-job-finished') >= 0) { log('发现一个已完成任务点，跳过', 'ok'); return; }
 
-    var ansJobIcon = null;
-    try { ansJobIcon = iframe.parentElement && iframe.parentElement.querySelector('.ans-job-icon'); } catch (e) {}
-    if (!ansJobIcon) return;
+    var icon = null;
+    try { icon = parent && parent.querySelector('.ans-job-icon'); } catch (e) {}
+    if (!icon) return;                               // 没有任务点标记：知识拓展之类的普通视频
 
-    var canVideo = !!(st.settings && st.settings.level === 'full' && st.settings.autoVideo);
-    if (iframeSrc.indexOf('video') >= 0) {
-      if (!canVideo) { log('这个视频是任务点，但视频代播没开（要全自动档 + 设置里勾选）', 'warn'); return; }
-      return refProcessMedia('video', iframeDocument, gen);
+    var playOn = !!(st.settings && st.settings.level === 'full' && st.settings.autoVideo);
+    if (src.indexOf('video') >= 0) {
+      if (!playOn) { log('这个视频是任务点，但视频代播没开（要全自动档 + 设置里勾选）', 'warn'); return; }
+      return refProcessMedia('video', doc, gen);
     }
-    if (iframeSrc.indexOf('audio') >= 0) {
-      if (!canVideo) { log('这个音频是任务点，但视频代播没开', 'warn'); return; }
-      return refProcessMedia('audio', iframeDocument, gen);
+    if (src.indexOf('audio') >= 0) {
+      if (!playOn) { log('这个音频是任务点，但视频代播没开', 'warn'); return; }
+      return refProcessMedia('audio', doc, gen);
     }
-    var docLike = false;
-    try { docLike = ['ppt', 'doc', 'pptx', 'docx', 'pdf'].some(function (t) { return iframeSrc.indexOf('modules/' + t) >= 0; }); } catch (e) {}
-    if (docLike) return refProcessPpt(iframeWindow);
-    return;
+    var kinds = ['ppt', 'doc', 'pptx', 'docx', 'pdf'];
+    for (var k = 0; k < kinds.length; k++) {
+      if (src.indexOf('modules/' + kinds[k]) >= 0) return refProcessPpt(win);
+    }
   }
 
   // 串行：一个框架处理完（视频播到结束）才处理下一个
@@ -2470,7 +2486,7 @@
     if (!(st.settings.level === 'full' && st.settings.autoVideo)) {
       log('提示：视频代播没开（需 全自动档 + 设置里勾选「自动播放视频」），视频要你手动点播放', 'warn');
     }
-    // 完全照参考脚本：一次性收集本页所有 iframe（含嵌套），按页面顺序串行处理，
+    // 一次性收集本页所有 iframe（含嵌套），按页面顺序串行处理，
     // 一个视频播完才处理下一个；不在 .ans-job-icon 里的视频一律不播。
     try { window.__lhTopControls = true; window.__lhQueueActive = true; } catch (e) {}
     restartQueue();
@@ -2531,7 +2547,7 @@
         setStage('任务点 ' + info.done + '/' + info.total);
         if (info.done !== lastDone) {
           if (lastDone >= 0 && info.done > lastDone) log('有任务点刚从「未完成」变成「已完成」', 'ok');
-          log('任务点进度：' + info.done + ' / ' + info.total + (info.total === 0 ? '（没有带 .ans-job-icon 的模块，按参考脚本这节不算任务点）' : (info.pending ? '，还有 ' + info.pending + ' 个没完成' : '，全部完成')), 'info');
+          log('任务点进度：' + info.done + ' / ' + info.total + (info.total === 0 ? '（没有带 .ans-job-icon 的模块，这一节不算任务点）' : (info.pending ? '，还有 ' + info.pending + ' 个没完成' : '，全部完成')), 'info');
           lastDone = info.done;
         }
         if (chapterComplete(info)) {
@@ -2826,7 +2842,7 @@
   }
 
 
-  // 参考脚本里的父元素 class（ansi job finished 就挂在 iframe 的父元素上）
+  // 父元素 class（ans-job-finished 就挂在 iframe 的父元素上）
   function parentClassOf(f) {
     var c = '';
     try { c = (f.parentElement && f.parentElement.className) || ''; } catch (e) {}
@@ -2836,15 +2852,21 @@
     return String(c);
   }
 
-  // 任务点清点：完全照 refProcessIframe 的判据
-  //   1) 没有 contentDocument 或 src 是 javascript:  → 不是任务点
-  //   2) parentElement.className 含 ans-job-finished → 已完成
-  //   3) parentElement.querySelector('.ans-job-icon') 存在 → 未完成的任务点
-  //   4) 其余（比如「知识拓展」那些视频）          → 不是任务点
+  // 任务点清点，判据与上面的分派完全一致：
+  //   读不到内容 / src 是 javascript:      → 不算
+  //   父元素带 ans-job-finished            → 算一个，且已完成
+  //   父元素里有 .ans-job-icon             → 算一个；作业类再看页面上有没有「已完成 / 待批阅」
+  //   其余                                  → 不算（知识拓展、上报小框架等）
+  function workDocSubmitted(doc) {
+    var t = '';
+    try { t = String(doc.documentElement.innerText || ''); } catch (e) { t = ''; }
+    return t.indexOf('已完成') >= 0 || t.indexOf('待批阅') >= 0;
+  }
+
   function refTaskInfo() {
     var list = refGetIframes(document.documentElement);
-    var total = 0, done = 0, pending = 0, i;
-    for (i = 0; i < list.length; i++) {
+    var total = 0, done = 0, pending = 0;
+    for (var i = 0; i < list.length; i++) {
       var f = list[i], doc = null, src = '';
       try { doc = f.contentDocument; } catch (e) {}
       try { src = String(f.src || ''); } catch (e) {}
@@ -2856,13 +2878,7 @@
       try { icon = f.parentElement && f.parentElement.querySelector('.ans-job-icon'); } catch (e) {}
       if (!icon) continue;
       total++;
-      var fin = false;
-      if (src.indexOf('api/work') >= 0) {
-        var t = '';
-        try { t = String(doc.documentElement.innerText || ''); } catch (e) {}
-        if (t.indexOf('已完成') >= 0 || t.indexOf('待批阅') >= 0) fin = true;
-      }
-      if (fin) done++; else pending++;
+      if (src.indexOf('api/work') >= 0 && workDocSubmitted(doc)) done++; else pending++;
     }
     return { total: total, done: done, pending: pending };
   }
@@ -3227,48 +3243,55 @@
     }, 1500);
   }
 
-  // ===== 完全照参考脚本的驱动：processIframeTask / watchIframe / setupInterceptor =====
+  // ===== 驱动：抓本页所有框架 → 串行处理 → 都处理完了再切标签 / 跳下一节 =====
   var refTaskId = 0;
 
   function refProcessIframeTask() {
     var docEl = document.documentElement;
-    var iframe = docEl.querySelector('iframe');
-    if (!iframe) { log('页面上还没有 iframe，等它出来', 'info'); return; }
+    var first = null;
+    try { first = docEl.getElementsByTagName('iframe')[0] || null; } catch (e) { first = null; }
+    if (!first) { log('页面上还没有 iframe，等它出来', 'info'); return; }
     refWatchIframe(docEl);
-    iframe.addEventListener('load', function () { refWatchIframe(docEl); });
+    try { first.addEventListener('load', function () { refWatchIframe(docEl); }); } catch (e) {}
   }
 
   async function refWatchIframe(docEl) {
-    var thisTaskId = ++refTaskId;
-    st.watchTid = thisTaskId;
-    var list = refGetIframes(docEl);
-    log('本页共 ' + list.length + ' 个框架，按页面顺序一个个处理', 'info');
-    for (var i = 0; i < list.length; i++) {
-      if (thisTaskId !== refTaskId) { log('页面变了，这一轮处理停下', 'info'); return; }
+    var ticket = ++refTaskId;
+    st.watchTid = ticket;
+    function stale() { return ticket !== refTaskId; }
+    var frames = refGetIframes(docEl);
+    log('本页共 ' + frames.length + ' 个框架，按页面顺序一个个处理', 'info');
+    for (var i = 0; i < frames.length; i++) {
+      if (stale()) { log('页面变了，这一轮处理停下', 'info'); return; }
       var s0 = '';
-      try { s0 = String(list[i].src || '').slice(0, 60); } catch (e) {}
+      try { s0 = String(frames[i].src || '').slice(0, 60); } catch (e) {}
       log('处理第 ' + (i + 1) + ' 个框架：' + (s0 || '(空)'), 'info');
-      try { await refProcessIframe(list[i]); } catch (e) { log('第 ' + (i + 1) + ' 个框架处理出错：' + (e && e.message || e), 'warn'); }
+      try { await refProcessIframe(frames[i]); } catch (e) { log('第 ' + (i + 1) + ' 个框架处理出错：' + (e && e.message || e), 'warn'); }
     }
-    if (thisTaskId !== refTaskId) return;
-    // 本页常常有「1 视频 / 2 章节测验」两个标签，测验里还有题目和任务点，先切过去处理
+    if (stale()) return;
+
+    // 本页常有「1 视频 / 2 章节测验」两个标签，测验里还有题目和任务点，先切过去处理
     try {
-      var switched = await switchNextTab();
-      if (switched) {
+      if (await switchNextTab()) {
         log('本页还有下一个标签，切过去处理完再走', 'info');
         await sleep(2500);
         refProcessIframeTask();
         return;
       }
     } catch (e) {}
-    var rest0 = refTaskInfo();
-    if (rest0.pending > 0) {
-      if (!window.__lhPendSaid) { window.__lhPendSaid = true; log('还有 ' + rest0.pending + ' 个任务点没完成（共 ' + rest0.total + '），先把它们做完，不跳下一节', 'warn'); }
+
+    var left = refTaskInfo();
+    if (left.pending > 0) {
+      if (!window.__lhPendSaid) {
+        window.__lhPendSaid = true;
+        log('还有 ' + left.pending + ' 个任务点没完成（共 ' + left.total + '），先把它们做完，不跳下一节', 'warn');
+      }
       await sleep(8000);
-      if (thisTaskId === refTaskId) refProcessIframeTask();
+      if (!stale()) refProcessIframeTask();
       return;
     }
     window.__lhPendSaid = false;
+
     log('本页任务点已全部完成，正前往下一章节', 'ok');
     var nextBtn = docEl.querySelector('#prevNextFocusNext');
     if (!nextBtn || nextBtn.style.display === 'none') {
@@ -3285,32 +3308,33 @@
   function refStart() {
     try { window.__lhTopControls = true; window.__lhQueueActive = true; } catch (e) {}
     refProcessIframeTask();
-    var cur = location.href;
+
+    // ajax 换节只改地址不刷新页面，地址一变就重跑一遍
+    var here = location.href;
     setInterval(function () {
-      if (cur !== location.href) {
-        cur = location.href;
-        log('页面地址变了，重新开始处理这一节', 'info');
-        refTaskId++;
-        clickedTabs = {}; tabWarned = false; st.workStarted = false;
-        sessionStorage.setItem('lh_hits', '1');
-        refProcessIframeTask();
-      }
+      if (here === location.href) return;
+      here = location.href;
+      log('页面地址变了，重新开始处理这一节', 'info');
+      refTaskId++;
+      clickedTabs = {}; tabWarned = false; st.workStarted = false;
+      sessionStorage.setItem('lh_hits', '1');
+      refProcessIframeTask();
     }, 2000);
-    // 右上角的任务点计数（只读，不改判定）
-    var lastCount = '';
+
+    // 面板上的任务点计数（只读，不参与判定）
+    var lastTxt = '';
     setInterval(function () {
       try {
         var r = refTaskInfo();
         var txt = r.done + ' / ' + r.total;
         setStage('任务点 ' + txt);
-        if (txt !== lastCount) {
-          lastCount = txt;
-          log('任务点进度：' + txt + (r.pending ? '，还有 ' + r.pending + ' 个没完成' : '，全部完成'), r.pending ? 'info' : 'ok');
-        }
+        if (txt === lastTxt) return;
+        lastTxt = txt;
+        log('任务点进度：' + txt + (r.pending ? '，还有 ' + r.pending + ' 个没完成' : '，全部完成'), r.pending ? 'info' : 'ok');
       } catch (e) {}
     }, 5000);
 
-    // 章节页里内联的测验：出现了题目就交给做题流程
+    // 章节页里内联的测验：看到题目就交给做题流程
     setInterval(function () {
       try {
         if (!st.workStarted && hasQuestions(document)) {

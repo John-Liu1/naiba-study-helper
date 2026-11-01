@@ -2,7 +2,7 @@
   "manifest_version": 3,
   "name": "学习通-无敌智慧奶娃学习助手",
   "short_name": "无敌智慧奶娃",
-  "version": "0.4.7",
+  "version": "0.4.8",
   "description": "用你自己的大模型辅助学习通章节学习：扫描任务点、解析题目、作答与核对。",
   "permissions": ["storage"],
   "host_permissions": [
