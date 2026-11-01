@@ -3510,29 +3510,48 @@
     return data.text || '';
   }
 
-  async function waitLangPicked(lang) {
+  // 读页面上「请选择程序语言」当前显示的文本：null=没有下拉，''=还没选，其它=已选
+  function langText() {
     var dd = nodeByExactText(/请选择程序语言|选择语言|程序语言/, 20);
-    if (!dd) { log('页面上没有语言下拉，按 ' + lang + ' 写', 'info'); return true; }
+    if (!dd) return null;
+    var t = (dd.textContent || '').replace(/\s+/g, ' ').trim();
+    if (!t || /请选择程序语言|请选择|选择语言|^程序语言$/.test(t)) return '';
+    return t.slice(0, 24);
+  }
+  // 把页面上的语言名归一成模型听得懂的名字（Python3.12.12 → Python 3）
+  function normLang(t) {
+    var a = String(t || '').toLowerCase();
+    if (/python\s*2(?![0-9])/.test(a)) return 'Python 2';
+    if (/python/.test(a)) return 'Python 3';
+    if (/golang|(^|[^a-z])go([^a-z]|$)/.test(a)) return 'Go';
+    if (/c#|csharp/.test(a)) return 'C#';
+    if (/vb\.?net/.test(a)) return 'VB.NET';
+    if (/java/.test(a)) return 'Java';
+    if (/c\+\+/.test(a)) return 'C++';
+    return String(t || '').trim();
+  }
+  // 等用户自己在页面上选语言：选了就返回他选的文本，3 分钟没选返回 null
+  async function waitLangPicked() {
+    if (langText() === null) { log('这一页没有语言下拉，语言由你自己定', 'info'); return null; }
     for (var i = 0; i < 90; i++) {
-      var t = (dd.textContent || '').replace(/s+/g, '');
-      if (t && !/请选择|选择语言|程序语言/.test(t)) {
-        log('检测到你已经选好语言：' + t.slice(0, 20) + '，开始生成代码', 'ok');
-        return true;
-      }
+      var t = langText();
+      if (t) { log('检测到你已经选好语言：' + t, 'ok'); return t; }
       await sleep(2000);
     }
-    log('等了 3 分钟没看到你选语言，先按 ' + lang + ' 把代码写进去，你自己再点自测/评估', 'warn');
-    return false;
+    log('等了 3 分钟你还没在页面上选语言，先按兜底语言把代码写进去', 'warn');
+    return null;
   }
   async function runCoding() {
     log('识别到 AI实践/编程题页面，开始处理', 'ok');
     var task = codingTaskText();
     if (!task) { log('没读到题目要求，先不动', 'warn'); return; }
     log('题目要求已读到（' + task.length + ' 字）', 'info');
-    var wantLang = (st.settings && st.settings.codingLang) || 'Python3';
-    log('这一页要你自己选语言：右上角「请选择程序语言」里选 ' + wantLang + '，我生成的代码就是这种语言。选好之后我自动继续', 'warn');
-    await waitLangPicked(wantLang);
-    var lang = wantLang;
+    log('这一页要你先选语言：右上角「请选择程序语言」，你选哪种我就用哪种写', 'warn');
+    var picked = await waitLangPicked();
+    var fallback = (st.settings && st.settings.codingLang) || 'Python3';
+    var lang = normLang(picked || fallback);
+    if (picked) log('按你选的 ' + lang + ' 生成代码', 'ok');
+    else log('按兜底语言 ' + lang + ' 生成代码（设置页可改）', 'warn');
     var code = '', errText = '';
     for (var round = 1; round <= 3; round++) {
       var txt = await askCode(task, lang, code, errText);
