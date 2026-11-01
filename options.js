@@ -1,0 +1,256 @@
+'use strict';
+
+var PRESETS = [
+  { name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1', model: 'deepseek-chat' },
+  { name: '通义千问 Qwen', baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1', model: 'qwen-plus' },
+  { name: 'Kimi Moonshot', baseUrl: 'https://api.moonshot.cn/v1', model: 'moonshot-v1-8k' },
+  { name: '智谱 GLM', baseUrl: 'https://open.bigmodel.cn/api/paas/v4', model: 'glm-4-flash' },
+  { name: 'Ollama 本地', baseUrl: 'http://localhost:11434/v1', model: 'qwen2.5:7b' },
+  { name: '自定义', baseUrl: '', model: '' }
+];
+
+var state = { settings: null };
+
+function $(id) { return document.getElementById(id); }
+function el(tag, cls, txt) {
+  var e = document.createElement(tag);
+  if (cls) e.className = cls;
+  if (txt !== undefined) e.textContent = txt;
+  return e;
+}
+function msg(txt, kind) {
+  var m = $('msg');
+  m.textContent = txt || '';
+  m.className = 'msg ' + (kind || '');
+}
+
+function originPattern(url) {
+  try {
+    var u = new URL(String(url).trim());
+    return u.protocol + '//' + u.host + '/*';
+  } catch (e) { return null; }
+}
+
+function load() {
+  chrome.storage.local.get(['settings'], function (r) {
+    state.settings = r.settings || null;
+    if (!state.settings) {
+      state.settings = {
+        level: 'semi', autoVideo: false, targetScore: 90, maxRounds: 2, samples: 3, judgeChannel: '', codingLang: 'Python3',
+        delayMs: 600, courseBackground: '', activeChannel: 'default',
+        channels: [{ id: 'default', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1',
+                     key: '', model: 'deepseek-chat', temperature: 0.7, maxTokens: 2000 }]
+      };
+    }
+    render();
+  });
+}
+
+function render() {
+  var s = state.settings;
+
+  var radios = document.querySelectorAll('input[name=level]');
+  for (var i = 0; i < radios.length; i++) {
+    radios[i].checked = radios[i].value === s.level;
+    radios[i].closest('.lv').classList.toggle('on', radios[i].checked);
+    radios[i].onchange = function () {
+      for (var j = 0; j < radios.length; j++) {
+        radios[j].closest('.lv').classList.toggle('on', radios[j].checked);
+      }
+    };
+  }
+
+  $('autoVideo').checked = !!s.autoVideo;
+  $('loosen').checked = !!s.loosen;
+  $('targetScore').value = s.targetScore;
+  $('samples').value = s.samples;
+  $('maxRounds').value = s.maxRounds;
+  $('delayMs').value = s.delayMs;
+  $('courseBackground').value = s.courseBackground || '';
+  $('codingLang').value = s.codingLang || 'Python3';
+
+  var box = $('channels');
+  box.innerHTML = '';
+  for (var k = 0; k < s.channels.length; k++) {
+    box.appendChild(channelCard(s.channels[k], k, s));
+  }
+  fillJudge(s);
+}
+
+function channelCard(ch, idx, s) {
+  var wrap = el('div', 'ch');
+
+  var top = el('div', 'top');
+  var radio = document.createElement('input');
+  radio.type = 'radio';
+  radio.name = 'activeChannel';
+  radio.value = ch.id;
+  radio.checked = ch.id === s.activeChannel;
+  radio.onchange = function () { s.activeChannel = ch.id; fillJudge(s); };
+  top.appendChild(radio);
+  top.appendChild(el('span', 'nm', '通道 ' + (idx + 1)));
+
+  var del = el('button', 'danger sp', '删除');
+  del.onclick = function () {
+    if (s.channels.length <= 1) { msg('至少要保留一条通道', 'err'); return; }
+    s.channels = s.channels.filter(function (x) { return x.id !== ch.id; });
+    if (s.activeChannel === ch.id) s.activeChannel = s.channels[0].id;
+    render();
+  };
+  top.appendChild(del);
+  wrap.appendChild(top);
+
+  var r1 = el('div', 'row');
+  r1.appendChild(field('预设（选中后自动填地址与模型）', selectPreset(ch)));
+  r1.appendChild(field('名称', input(ch.name, function (v) { ch.name = v; })));
+  wrap.appendChild(r1);
+
+  var r2 = el('div', 'row');
+  r2.appendChild(field('Base URL', input(ch.baseUrl, function (v) { ch.baseUrl = v; }, 'https://api.deepseek.com/v1')));
+  r2.appendChild(field('模型名', input(ch.model, function (v) { ch.model = v; }, 'deepseek-chat')));
+  wrap.appendChild(r2);
+
+  var r3 = el('div', 'row');
+  var keyInput = input(ch.key, function (v) { ch.key = v; }, 'sk-...');
+  keyInput.type = 'password';
+  r3.appendChild(field('API Key', keyInput));
+  wrap.appendChild(r3);
+
+  var r4 = el('div', 'row');
+  r4.appendChild(field('温度', num(ch.temperature, function (v) { ch.temperature = v; }, 0, 2, 0.1)));
+  r4.appendChild(field('最大 token', num(ch.maxTokens, function (v) { ch.maxTokens = v; }, 256, 8000, 128)));
+  var testBtn = el('button', '', '连通性测试');
+  var testMsg = el('span', '', '');
+  testMsg.style.cssText = 'font-size:12px;margin-left:10px;color:#7a838d';
+  testBtn.onclick = function () {
+    testMsg.textContent = '测试中…';
+    chrome.runtime.sendMessage({ type: 'llm.test', payload: { channelId: ch.id, channel: ch } }, function (r) {
+      if (!r || !r.ok) { testMsg.textContent = '失败：' + ((r && r.error) || '无响应'); testMsg.style.color = '#c0281e'; return; }
+      testMsg.textContent = '成功 · ' + r.data.ms + 'ms · ' + r.data.model + ' · 回复「' + r.data.reply + '」';
+      testMsg.style.color = '#127a3d';
+    });
+  };
+  var box = field('', testBtn);
+  box.appendChild(testMsg);
+  box.style.marginTop = '22px';
+  r4.appendChild(box);
+  wrap.appendChild(r4);
+
+  return wrap;
+}
+
+function field(label, node) {
+  var d = el('div', 'field');
+  if (label) d.appendChild(el('label', 't', label));
+  d.appendChild(node);
+  return d;
+}
+function input(val, onChange, ph) {
+  var i = document.createElement('input');
+  i.type = 'text';
+  i.value = val === undefined || val === null ? '' : val;
+  if (ph) i.placeholder = ph;
+  i.oninput = function () { onChange(i.value.trim()); };
+  return i;
+}
+function num(val, onChange, min, max, step) {
+  var i = document.createElement('input');
+  i.type = 'number';
+  i.value = val;
+  i.min = min; i.max = max; i.step = step;
+  i.oninput = function () { onChange(Number(i.value)); };
+  return i;
+}
+function selectPreset(ch) {
+  var sel = document.createElement('select');
+  for (var i = 0; i < PRESETS.length; i++) {
+    var o = document.createElement('option');
+    o.value = String(i);
+    o.textContent = PRESETS[i].name;
+    sel.appendChild(o);
+  }
+  sel.onchange = function () {
+    var p = PRESETS[Number(sel.value)];
+    if (!p) return;
+    if (p.baseUrl) {
+      ch.baseUrl = p.baseUrl;
+      ch.model = p.model;
+      ch.name = p.name;
+      render();
+    }
+  };
+  return sel;
+}
+
+function collect() {
+  var s = state.settings;
+  var radios = document.querySelectorAll('input[name=level]');
+  for (var i = 0; i < radios.length; i++) if (radios[i].checked) s.level = radios[i].value;
+  s.autoVideo = $('autoVideo').checked;
+  s.loosen = $('loosen').checked;
+  s.targetScore = Number($('targetScore').value) || 90;
+  s.codingLang = ($('codingLang').value || 'Python3').trim();
+  s.judgeChannel = $('judgeChannel').value || '';
+  s.samples = Number($('samples').value) || 3;
+  s.maxRounds = Number($('maxRounds').value) || 2;
+  s.delayMs = Number($('delayMs').value) || 600;
+  s.courseBackground = $('courseBackground').value.trim();
+  return s;
+}
+
+function requestHosts(s) {
+  var wanted = [];
+  for (var i = 0; i < s.channels.length; i++) {
+    var p = originPattern(s.channels[i].baseUrl);
+    if (p) wanted.push(p);
+  }
+  if (!wanted.length) return Promise.resolve(true);
+  return new Promise(function (resolve) {
+    chrome.permissions.request({ origins: wanted }, function (granted) {
+      resolve(!!granted);
+    });
+  });
+}
+
+$('addChannel').onclick = function () {
+  var s = state.settings;
+  var id = 'ch' + Date.now();
+  s.channels.push({ id: id, name: '新通道', baseUrl: '', key: '', model: '', temperature: 0.7, maxTokens: 2000 });
+  render();
+};
+
+$('save').onclick = function () {
+  var s = collect();
+  msg('正在申请访问权限…');
+  requestHosts(s).then(function (granted) {
+    if (!granted) {
+      msg('未授权访问模型地址，请求会失败。可再点一次保存并允许。', 'err');
+    }
+    chrome.storage.local.set({ settings: s }, function () {
+      msg(granted ? '已保存' : '已保存（但未授权模型地址）', granted ? 'ok' : 'err');
+      setTimeout(function () { msg(''); }, 3000);
+    });
+  });
+};
+
+$('reset').onclick = function () {
+  if (!confirm('确定清空所有配置（包括 API Key）？')) return;
+  chrome.storage.local.clear(function () { location.reload(); });
+};
+
+load();
+
+  function fillJudge(s) {
+    var sel = $('judgeChannel');
+    if (!sel) return;
+    sel.innerHTML = '<option value="">不启用</option>';
+    for (var i = 0; i < s.channels.length; i++) {
+      if (s.channels[i].id === s.activeChannel) continue;
+      var o = document.createElement('option');
+      o.value = s.channels[i].id;
+      o.textContent = s.channels[i].name || s.channels[i].id;
+      sel.appendChild(o);
+    }
+    sel.value = s.judgeChannel || '';
+    if (sel.value !== (s.judgeChannel || '')) sel.value = '';
+  }

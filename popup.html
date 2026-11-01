@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<style>
+  body { width:260px; margin:0; font:13px/1.6 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; color:#1f2328; }
+  .hd { background:#1769d6; color:#fff; padding:10px 14px; font-weight:600; }
+  .bd { padding:12px 14px; }
+  .lv { display:block; border:1px solid #e3e6ea; border-radius:8px; padding:8px 10px; margin-bottom:8px; cursor:pointer; }
+  .lv.on { border-color:#1769d6; background:#f2f7ff; }
+  .lv b { font-size:13px; } .lv span { display:block; font-size:11px; color:#7a838d; }
+  .st { font-size:12px; color:#7a838d; margin:10px 0; }
+  button { width:100%; border:1px solid #e3e6ea; background:#fff; border-radius:7px; padding:7px; font:13px inherit; cursor:pointer; }
+</style>
+</head>
+<body>
+<div class="hd">学习通 LLM 助手</div>
+<div class="bd">
+  <div class="lv" data-lv="readonly"><b>只读档</b><span>只解析，不填不交</span></div>
+  <div class="lv" data-lv="semi"><b>半自动</b><span>自动填，你点提交</span></div>
+  <div class="lv" data-lv="full"><b>全自动</b><span>达标直接交</span></div>
+  <div class="st" id="st">读取中…</div>
+  <button id="opt">打开完整设置</button>
+</div>
+<script src="popup.js"></script>
+</body>
+</html>

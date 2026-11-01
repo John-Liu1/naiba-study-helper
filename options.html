@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>学习通 LLM 助手 · 设置</title>
+<style>
+  :root { --c:#1769d6; --bd:#e3e6ea; --mut:#7a838d; }
+  * { box-sizing:border-box; }
+  body { margin:0; background:#f5f7fa; color:#1f2328;
+         font:14px/1.7 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif; }
+  .wrap { max-width:880px; margin:0 auto; padding:28px 20px 80px; }
+  h1 { font-size:19px; margin:0 0 4px; }
+  .sub { color:var(--mut); font-size:13px; margin-bottom:22px; }
+  .card { background:#fff; border:1px solid var(--bd); border-radius:10px; padding:18px 20px; margin-bottom:16px; }
+  .card h2 { font-size:14px; margin:0 0 14px; padding-bottom:10px; border-bottom:1px solid #f0f2f5; }
+  .row { display:flex; gap:14px; flex-wrap:wrap; margin-bottom:12px; }
+  .field { flex:1 1 200px; }
+  label.t { display:block; font-size:12px; color:var(--mut); margin-bottom:4px; }
+  input[type=text], input[type=password], input[type=number], textarea, select {
+    width:100%; padding:7px 10px; border:1px solid var(--bd); border-radius:7px;
+    font:13px/1.5 inherit; background:#fff; color:#1f2328; }
+  input:focus, textarea:focus, select:focus { outline:none; border-color:var(--c); }
+  textarea { min-height:70px; resize:vertical; }
+  .levels { display:flex; gap:10px; flex-wrap:wrap; }
+  .lv { flex:1 1 180px; border:1px solid var(--bd); border-radius:8px; padding:10px 12px; cursor:pointer; }
+  .lv input { margin-right:6px; }
+  .lv.on { border-color:var(--c); background:#f2f7ff; }
+  .lv b { display:block; font-size:13px; }
+  .lv span { font-size:12px; color:var(--mut); }
+  .ch { border:1px solid var(--bd); border-radius:9px; padding:14px; margin-bottom:12px; background:#fbfcfd; }
+  .ch .top { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+  .ch .top .nm { font-weight:600; font-size:13px; }
+  .ch .top .sp { margin-left:auto; }
+  .ch .top input[type=radio] { margin-right:4px; }
+  button { border:1px solid var(--bd); background:#fff; border-radius:7px; padding:6px 14px;
+           font:13px inherit; cursor:pointer; color:#1f2328; }
+  button:hover { border-color:#c8ccd2; }
+  button.primary { background:var(--c); border-color:var(--c); color:#fff; }
+  button.primary:hover { background:#1259ba; }
+  button.danger { color:#c0281e; }
+  .bar { position:fixed; left:0; right:0; bottom:0; background:#fff; border-top:1px solid var(--bd);
+         padding:12px 20px; display:flex; gap:12px; align-items:center; }
+  .bar .wrap2 { max-width:880px; margin:0 auto; width:100%; display:flex; gap:12px; align-items:center; }
+  .msg { font-size:12px; color:var(--mut); margin-left:auto; }
+  .msg.ok { color:#127a3d; } .msg.err { color:#c0281e; }
+  .tip { font-size:12px; color:var(--mut); margin-top:6px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>学习通 LLM 助手</h1>
+  <div class="sub">用你自己的大模型辅助章节学习。密钥只存在本机浏览器里，不经过任何第三方服务器。</div>
+
+  <div class="card">
+    <h2>自动化档位</h2>
+    <div class="levels" id="levels">
+      <label class="lv"><input type="radio" name="level" value="readonly"><b>只读档</b><span>只解析题目与讲解，不填不交</span></label>
+      <label class="lv"><input type="radio" name="level" value="semi"><b>半自动</b><span>自动填入，核对后手动点提交</span></label>
+      <label class="lv"><input type="radio" name="level" value="full"><b>全自动</b><span>达标直接提交，可代播视频</span></label>
+    </div>
+    <div class="row" style="margin-top:14px">
+      <label class="field" style="flex:0 0 auto;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="autoVideo"><span style="font-size:13px">允许视频静音代播（仅全自动档生效）</span>
+      </label>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <label class="field" style="flex:0 0 auto;display:flex;align-items:center;gap:8px">
+        <input type="checkbox" id="loosen"><span style="font-size:13px">宽松模式：伪装页面可见、拦截切屏检测、允许拖动进度条</span>
+      </label>
+    </div>
+    <div class="tip">考试页（/exam-ans/exam）在任何档位下都不会自动作答，这是硬性限制。</div>
+  </div>
+
+  <div class="card">
+    <h2>作答参数</h2>
+    <div class="row">
+      <div class="field"><label class="t">目标分数（预估分低于此值会重答）</label><input type="number" id="targetScore" min="0" max="100" step="1"></div>
+      <div class="field"><label class="t">每题采样次数（一致性投票）</label><input type="number" id="samples" min="1" max="5" step="1"></div>
+      <div class="field"><label class="t">最多重答轮数</label><input type="number" id="maxRounds" min="1" max="4" step="1"></div>
+      <div class="field"><label class="t">请求间隔（毫秒）</label><input type="number" id="delayMs" min="0" max="5000" step="100"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="field"><label class="t">编程题用哪种语言（你在页面上自己选同一种，助手不替你点下拉）</label><input type="text" id="codingLang" placeholder="Python3"></div>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <div class="field"><label class="t">交叉校验模型（可选，建议选另一家的模型：两个模型都答同一选项才算高分）</label><select id="judgeChannel"><option value="">不启用</option></select></div>
+    </div>
+    <div class="field" style="margin-top:4px">
+      <label class="t">课程背景说明（可选，会附在每次提问里，能明显提高准确率）</label>
+      <textarea id="courseBackground" placeholder="例如：本课程是《计算机网络》，重点讲 TCP/IP 协议栈与子网划分，考试按教材第 3 版出题。"></textarea>
+    </div>
+  </div>
+
+  <div class="card">
+    <h2>模型通道</h2>
+    <div id="channels"></div>
+    <button id="addChannel">+ 添加一条通道</button>
+    <div class="tip">所有通道都走 OpenAI 兼容协议（POST /chat/completions）。Base URL 一般以 /v1 结尾；Ollama 填 http://localhost:11434/v1。</div>
+  </div>
+</div>
+
+<div class="bar"><div class="wrap2">
+  <button class="primary" id="save">保存</button>
+  <button id="reset">恢复默认</button>
+  <span class="msg" id="msg"></span>
+</div></div>
+
+<script src="options.js"></script>
+</body>
+</html>
