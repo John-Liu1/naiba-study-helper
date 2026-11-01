@@ -116,7 +116,7 @@
   <img src="docs/screenshots/03-options-top.png" width="760" alt="设置页：自动化档位与作答参数">
 </p>
 
-<p align="center"><sub>设置页上半部分：三个档位单选、代播与宽松两个开关、以及作答参数。</sub></p>
+<p align="center"><sub>设置页上半部分：三个档位单选、代播与宽松两个开关，以及作答参数（含交叉校验模型与课程背景说明）。</sub></p>
 
 
 ---
