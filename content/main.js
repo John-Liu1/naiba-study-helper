@@ -3548,10 +3548,9 @@
     log('题目要求已读到（' + task.length + ' 字）', 'info');
     log('这一页要你先选语言：右上角「请选择程序语言」，你选哪种我就用哪种写', 'warn');
     var picked = await waitLangPicked();
-    var fallback = (st.settings && st.settings.codingLang) || 'Python3';
-    var lang = normLang(picked || fallback);
+    var lang = picked ? normLang(picked) : 'Python 3';
     if (picked) log('按你选的 ' + lang + ' 生成代码', 'ok');
-    else log('按兜底语言 ' + lang + ' 生成代码（设置页可改）', 'warn');
+    else log('你一直没选语言，先按 ' + lang + ' 生成；要换语言就在页面下拉里选好，再按 F5 让我重来一遍', 'warn');
     var code = '', errText = '';
     for (var round = 1; round <= 3; round++) {
       var txt = await askCode(task, lang, code, errText);

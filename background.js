@@ -9,7 +9,6 @@ var DEFAULT_SETTINGS = {
   targetScore: 90,
   maxRounds: 2,
   samples: 3,
-  codingLang: 'Python3',
   judgeChannel: '',
   delayMs: 600,
   courseBackground: '',

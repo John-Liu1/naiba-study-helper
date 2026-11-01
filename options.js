@@ -36,8 +36,7 @@ function load() {
     state.settings = r.settings || null;
     if (!state.settings) {
       state.settings = {
-        level: 'semi', autoVideo: false, targetScore: 90, maxRounds: 2, samples: 3, judgeChannel: '', codingLang: 'Python3',
-        delayMs: 600, courseBackground: '', activeChannel: 'default',
+        level: 'semi', autoVideo: false, targetScore: 90, maxRounds: 2, samples: 3, judgeChannel: '', delayMs: 600, courseBackground: '', activeChannel: 'default',
         channels: [{ id: 'default', name: 'DeepSeek', baseUrl: 'https://api.deepseek.com/v1',
                      key: '', model: 'deepseek-chat', temperature: 0.7, maxTokens: 2000 }]
       };
@@ -67,7 +66,6 @@ function render() {
   $('maxRounds').value = s.maxRounds;
   $('delayMs').value = s.delayMs;
   $('courseBackground').value = s.courseBackground || '';
-  $('codingLang').value = s.codingLang || 'Python3';
 
   var box = $('channels');
   box.innerHTML = '';
@@ -189,7 +187,6 @@ function collect() {
   s.autoVideo = $('autoVideo').checked;
   s.loosen = $('loosen').checked;
   s.targetScore = Number($('targetScore').value) || 90;
-  s.codingLang = ($('codingLang').value || 'Python3').trim();
   s.judgeChannel = $('judgeChannel').value || '';
   s.samples = Number($('samples').value) || 3;
   s.maxRounds = Number($('maxRounds').value) || 2;
