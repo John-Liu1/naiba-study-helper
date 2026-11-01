@@ -240,14 +240,37 @@ load();
   function fillJudge(s) {
     var sel = $('judgeChannel');
     if (!sel) return;
-    sel.innerHTML = '<option value="">不启用</option>';
+    var hint = $('judgeHint');
+    var others = [];
     for (var i = 0; i < s.channels.length; i++) {
-      if (s.channels[i].id === s.activeChannel) continue;
+      if (s.channels[i].id !== s.activeChannel) others.push(s.channels[i]);
+    }
+    sel.innerHTML = '';
+    if (!others.length) {
+      var only = document.createElement('option');
+      only.value = '';
+      only.textContent = '不启用（现在只有一条通道，没法交叉校验）';
+      sel.appendChild(only);
+      sel.value = '';
+      sel.disabled = true;
+      if (hint) {
+        hint.style.display = '';
+        hint.textContent = '交叉校验要两条通道才有得选。往下滚到「模型通道」，点「+ 添加一条通道」把地址、密钥、模型名填好再回来——两条通道不能是同一个模型，否则等于自己校验自己。';
+      }
+      return;
+    }
+    sel.disabled = false;
+    var none = document.createElement('option');
+    none.value = '';
+    none.textContent = '不启用';
+    sel.appendChild(none);
+    for (var k = 0; k < others.length; k++) {
       var o = document.createElement('option');
-      o.value = s.channels[i].id;
-      o.textContent = s.channels[i].name || s.channels[i].id;
+      o.value = others[k].id;
+      o.textContent = others[k].name || others[k].id;
       sel.appendChild(o);
     }
     sel.value = s.judgeChannel || '';
     if (sel.value !== (s.judgeChannel || '')) sel.value = '';
+    if (hint) hint.style.display = 'none';
   }
