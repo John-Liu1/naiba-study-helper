@@ -2537,7 +2537,7 @@
         if (chapterComplete(info)) {
           st.zeroRounds = 0;
           if (!allDoneSaid) {
-            log('本页任务点已全部完成 v' + (function () { try { return chrome.runtime.getManifest().version; } catch (e) { return '?'; } })() + '，页面上的视频不用再播了', 'ok');
+            log('本页任务点已全部完成 v' + (window.__lhVer || '?') + '，页面上的视频不用再播了', 'ok');
             allDoneSaid = true;
             stopAllFrames();
           }
@@ -3632,8 +3632,9 @@
       return;
     }
     if (ui) ui.badge.textContent = LEVEL_NAME[st.settings.level] || '未知';
-    var ver = '';
-    try { ver = ' v' + chrome.runtime.getManifest().version; } catch (e) {}
+    // main.js 跑在页面主世界，拿不到 chrome.*；版本号从后台 ui.assets 里取
+    try { var _as = await bg('ui.assets', {}); if (_as && _as.version) window.__lhVer = _as.version; } catch (e) {}
+    var ver = window.__lhVer ? ' v' + window.__lhVer : '';
     log('助手已加载' + ver + ' · ' + (LEVEL_NAME[st.settings.level] || st.settings.level) + ' · 视频代播 ' + (st.settings.autoVideo ? '开' : '关') + ' · 宽松模式 ' + (st.settings.loosen ? '开' : '关'), 'ok');
     updateVid();
     applyLoosen();
