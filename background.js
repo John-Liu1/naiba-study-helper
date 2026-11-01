@@ -171,6 +171,19 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
         return;
       }
 
+      if (msg.type === 'ui.assets') {
+        sendResponse({
+          ok: true,
+          data: {
+            wallpaper: chrome.runtime.getURL('assets/wallpaper.jpg'),
+            icon: chrome.runtime.getURL('icons/icon48.png'),
+            name: chrome.runtime.getManifest().name,
+            version: chrome.runtime.getManifest().version
+          }
+        });
+        return;
+      }
+
       if (msg.type === 'ui.openOptions') {
         chrome.runtime.openOptionsPage();
         sendResponse({ ok: true });

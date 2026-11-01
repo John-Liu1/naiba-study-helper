@@ -304,39 +304,40 @@
     var root = host.attachShadow({ mode: 'open' });
     var css = [
       ':host{all:initial}',
-      '.p{width:330px;background:#fff;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,.2);overflow:hidden;font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#1f2328;border:1px solid #e6e8eb}',
-      '.hd{display:flex;align-items:center;gap:6px;padding:9px 12px;background:#1769d6;color:#fff;cursor:move;user-select:none}',
+      '.p{width:330px;background:#fffcf3;border-radius:12px;box-shadow:0 12px 32px rgba(112,78,20,.22);overflow:hidden;font:13px/1.55 -apple-system,BlinkMacSystemFont,"Segoe UI","Microsoft YaHei",sans-serif;color:#3b2f18;border:1px solid #f1dfb6;background-size:cover;background-position:center}',
+      '.hd{display:flex;align-items:center;gap:7px;padding:8px 11px;background:linear-gradient(135deg,#ffd978,#f5bc3c);color:#57390a;cursor:move;user-select:none}',
+      '.hd img.av{width:22px;height:22px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(90,60,10,.28);flex:none}',
       '.hd button{cursor:pointer}',
-      '.hd .tt{font-weight:600;font-size:13px}',
-      '.hd .badge{margin-left:auto;font-size:11px;background:rgba(255,255,255,.22);padding:1px 8px;border-radius:9px}',
-      '.hd .min{border:0;background:transparent;color:#fff;font-size:15px;cursor:pointer;padding:0 2px}',
+      '.hd .tt{font-weight:700;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}',
+      '.hd .badge{margin-left:auto;font-size:11px;background:rgba(87,57,10,.15);padding:1px 8px;border-radius:9px;flex:none}',
+      '.hd .min{border:0;background:transparent;color:#57390a;font-size:15px;cursor:pointer;padding:0 2px;flex:none}',
       '.ft a{margin-right:10px}',
-      '.tabs{display:flex;border-bottom:1px solid #eceef1}',
-      '.tb{flex:1;border:0;background:#fff;padding:7px 0;font-size:12px;color:#5a6470;cursor:pointer}',
-      '.tb.on{color:#1769d6;box-shadow:inset 0 -2px 0 #1769d6;font-weight:600}',
-      '.pane{max-height:300px;overflow:auto;padding:8px 12px}',
+      '.tabs{display:flex;border-bottom:1px solid #f1e2c1;background:rgba(255,252,243,.72)}',
+      '.tb{flex:1;border:0;background:transparent;padding:7px 0;font-size:12px;color:#8a6b31;cursor:pointer}',
+      '.tb.on{color:#b4762a;box-shadow:inset 0 -2px 0 #e8b44a;font-weight:600}',
+      '.pane{max-height:300px;overflow:auto;padding:8px 12px;background:rgba(255,253,247,.80)}',
       '.hide{display:none!important}',
       '.ln{display:flex;gap:6px;padding:2px 0;font-size:12px;line-height:1.5}',
-      '.ln .t{color:#9aa3ad;flex:none;font-variant-numeric:tabular-nums}',
+      '.ln .t{color:#a48a5c;flex:none;font-variant-numeric:tabular-nums}',
       '.ln .m{word-break:break-word}',
-      '.ok .m{color:#127a3d}',
-      '.warn .m{color:#a15c00}',
-      '.err .m{color:#c0281e}',
-      '.ft{display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid #eceef1;background:#fafbfc;font-size:12px}',
-      '.ft a{color:#1769d6;cursor:pointer;text-decoration:none}',
-      '.ft .stage{margin-left:auto;color:#9aa3ad}',
-      '.sub{display:none;border:0;background:#1769d6;color:#fff;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer}',
-      '.q{border:1px solid #eceef1;border-radius:8px;padding:7px 9px;margin-bottom:7px}',
-      '.q .h{font-size:12px;color:#5a6470;margin-bottom:3px}',
-      '.q .a{font-weight:600;color:#127a3d}',
-      '.q .r{font-size:11px;color:#8b949e;margin-top:2px}',
-      '.lv-low .a{color:#c0281e}',
-      '.lv-mid .a{color:#a15c00}'
+      '.ok .m{color:#12703c}',
+      '.warn .m{color:#99580a}',
+      '.err .m{color:#bf2a1f}',
+      '.ft{display:flex;align-items:center;gap:8px;padding:7px 12px;border-top:1px solid #f1e2c1;background:rgba(255,247,231,.88);font-size:12px}',
+      '.ft a{color:#b4762a;cursor:pointer;text-decoration:none}',
+      '.ft .stage{margin-left:auto;color:#a48a5c}',
+      '.sub{display:none;border:0;background:#f3be4e;color:#4a3206;border-radius:6px;padding:5px 12px;font-size:12px;cursor:pointer;font-weight:600}',
+      '.q{border:1px solid #f1e2c1;background:rgba(255,255,255,.72);border-radius:8px;padding:7px 9px;margin-bottom:7px}',
+      '.q .h{font-size:12px;color:#8a6b31;margin-bottom:3px}',
+      '.q .a{font-weight:600;color:#12703c}',
+      '.q .r{font-size:11px;color:#a48a5c;margin-top:2px}',
+      '.lv-low .a{color:#bf2a1f}',
+      '.lv-mid .a{color:#99580a}'
     ].join('');
 
     root.innerHTML = '<style>' + css + '</style>' +
       '<div class="p">' +
-        '<div class="hd"><span class="tt">学习通 LLM 助手</span><span class="badge" id="badge">…</span><button class="min" id="min">—</button></div>' +
+        '<div class="hd"><img class="av" id="av" alt="奶娃"><span class="tt">学习通-无敌智慧奶娃学习助手</span><span class="badge" id="badge">…</span><button class="min" id="min">—</button></div>' +
         '<div id="bd">' +
           '<div class="tabs"><button class="tb on" data-tab="log">日志</button><button class="tb" data-tab="q">题目</button></div>' +
           '<div class="pane" id="pane-log"></div>' +
@@ -356,6 +357,21 @@
 
     enableDrag(host, root.querySelector('.hd'));
     bg('ui.getPos', {}).then(applyPos).catch(function () {});
+
+    // 奶娃主题：把头图与壁纸从扩展包里取过来（换个扩展 ID 也能用，所以走后台拿 chrome-extension:// 地址）
+    bg('ui.assets', {}).then(function (a) {
+      if (!a) return;
+      var p = root.querySelector('.p');
+      if (p && a.wallpaper) {
+        p.style.backgroundImage = 'linear-gradient(rgba(255,251,240,.60),rgba(255,246,226,.70)), url("' + a.wallpaper + '")';
+      }
+      var av = $('av');
+      if (av && a.icon) {
+        av.onload = function () { av.style.display = ''; };
+        av.style.display = 'none';
+        av.src = a.icon;
+      }
+    }).catch(function () {});
 
     $('min').onclick = function () { $('bd').classList.toggle('hide'); };
     $('opt').onclick = function () {
