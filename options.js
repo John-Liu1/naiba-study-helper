@@ -11,6 +11,17 @@ var PRESETS = [
 
 var state = { settings: null };
 
+var MODEL_CACHE = {};
+
+document.addEventListener('mousedown', function (e) {
+  var menus = document.querySelectorAll('.pk-menu');
+  for (var i = 0; i < menus.length; i++) {
+    var w = menus[i].parentNode;
+    if (w && w.contains(e.target)) continue;
+    menus[i].style.display = 'none';
+  }
+}, true);
+
 function $(id) { return document.getElementById(id); }
 function el(tag, cls, txt) {
   var e = document.createElement(tag);
@@ -139,12 +150,57 @@ function channelCard(ch, idx, s) {
 
 function modelPicker(ch, idx) {
   var box = el('div', 'pk');
-  var listId = 'models_' + idx + '_' + String(ch.id).replace(/[^A-Za-z0-9_]/g, '');
-  var inp = input(ch.model, function (v) { ch.model = v; }, 'deepseek-chat');
-  inp.setAttribute('list', listId);
+  var wrapI = el('div', 'pk-i');
 
-  var dl = document.createElement('datalist');
-  dl.id = listId;
+  var inp = input(ch.model, function (v) { ch.model = v; renderMenu(); }, 'deepseek-chat');
+  inp.autocomplete = 'off';
+
+  var caret = el('button', 'pk-caret', '\u25be');
+  caret.type = 'button';
+  caret.title = '展开模型列表';
+
+  var menu = el('div', 'pk-menu');
+  menu.style.display = 'none';
+
+  var models = (MODEL_CACHE[String(ch.baseUrl || '').trim()] || []).slice();
+
+  function close() { menu.style.display = 'none'; }
+
+  function pick(v) { ch.model = v; inp.value = v; close(); }
+
+  function renderMenu() {
+    var q = String(inp.value || '').trim().toLowerCase();
+    menu.innerHTML = '';
+    if (!models.length) {
+      menu.appendChild(el('div', 'pk-opt none', '还没有列表，先点右边「拉取列表」'));
+      return;
+    }
+    var hit = 0;
+    for (var i = 0; i < models.length; i++) {
+      var m = models[i];
+      if (q && m.toLowerCase().indexOf(q) < 0) continue;
+      hit++;
+      (function (mm) {
+        var d = el('div', 'pk-opt' + (mm === ch.model ? ' on' : ''), mm);
+        d.onmousedown = function (e) { e.preventDefault(); pick(mm); };
+        menu.appendChild(d);
+      })(m);
+    }
+    if (!hit) menu.appendChild(el('div', 'pk-opt none', '没有匹配的，直接手填也能用'));
+  }
+
+  function open() { renderMenu(); menu.style.display = 'block'; }
+
+  inp.onclick = open;
+  inp.onfocus = open;
+  inp.onkeydown = function (e) {
+    if (e.key === 'ArrowDown') { e.preventDefault(); open(); }
+    else if (e.key === 'Escape') close();
+  };
+  caret.onclick = function () {
+    if (menu.style.display === 'block') { close(); return; }
+    open();
+  };
 
   var btn = el('button', 'mini', '拉取列表');
   var tip = el('div', 'pk-tip', '');
@@ -161,23 +217,20 @@ function modelPicker(ch, idx) {
         tip.style.color = '#c0281e';
         return;
       }
-      var ms = (r.data && r.data.models) || [];
-      dl.innerHTML = '';
-      for (var i = 0; i < ms.length; i++) {
-        var o = document.createElement('option');
-        o.value = ms[i];
-        dl.appendChild(o);
-      }
-      tip.textContent = '拉到 ' + ms.length + ' 个模型，点一下输入框就能选；手填也照样可以';
+      models = (r.data && r.data.models) || [];
+      MODEL_CACHE[String(ch.baseUrl || '').trim()] = models.slice();
+      tip.textContent = '拉到 ' + models.length + ' 个模型，点输入框右侧 \u25be 展开；手填也照样可以';
       tip.style.color = '#127a3d';
-      if (!ch.model && ms.length) { ch.model = ms[0]; inp.value = ms[0]; }
-      inp.focus();
+      if (!ch.model && models.length) { ch.model = models[0]; inp.value = models[0]; }
+      open();
     });
   };
 
-  box.appendChild(inp);
+  wrapI.appendChild(inp);
+  wrapI.appendChild(caret);
+  wrapI.appendChild(menu);
+  box.appendChild(wrapI);
   box.appendChild(btn);
-  box.appendChild(dl);
   box.appendChild(tip);
   return box;
 }

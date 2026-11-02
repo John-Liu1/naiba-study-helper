@@ -47,6 +47,18 @@
   .pk { display:flex; gap:8px; align-items:center; flex-wrap:wrap; }
   .pk input[type=text] { flex:1 1 140px; min-width:0; }
   .pk-tip { font-size:12px; color:var(--mut); flex:1 1 100%; }
+  .pk-i { position:relative; flex:1 1 150px; min-width:0; display:flex; }
+  .pk-i input[type=text] { width:100%; padding-right:30px; }
+  .pk-caret { position:absolute; right:3px; top:50%; transform:translateY(-50%); border:none; background:transparent;
+              color:var(--c); font-size:13px; line-height:1; padding:4px 7px; cursor:pointer; }
+  .pk-caret:hover { background:#fdf3dd; border-radius:6px; }
+  .pk-menu { position:absolute; left:0; right:0; top:calc(100% + 3px); z-index:60; background:#fff;
+             border:1px solid var(--bd); border-radius:8px; box-shadow:0 10px 26px rgba(120,88,20,.18);
+             max-height:240px; overflow:auto; padding:4px; }
+  .pk-opt { padding:6px 9px; border-radius:6px; font-size:13px; cursor:pointer; color:#3b2f18; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .pk-opt:hover { background:#fdf3dd; }
+  .pk-opt.on { background:#f7e6c4; font-weight:600; }
+  .pk-opt.none { color:var(--mut); cursor:default; }
   button.mini { padding:7px 10px; font-size:12px; background:#fffdf8; color:var(--c); white-space:nowrap; }
   button.mini:disabled { opacity:.55; cursor:default; }
 </style>
