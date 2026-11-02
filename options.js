@@ -105,7 +105,7 @@ function channelCard(ch, idx, s) {
 
   var r2 = el('div', 'row');
   r2.appendChild(field('Base URL', input(ch.baseUrl, function (v) { ch.baseUrl = v; }, 'https://api.deepseek.com/v1')));
-  r2.appendChild(field('模型名', input(ch.model, function (v) { ch.model = v; }, 'deepseek-chat')));
+  r2.appendChild(field('模型名（可手填，也可拉列表选）', modelPicker(ch, idx)));
   wrap.appendChild(r2);
 
   var r3 = el('div', 'row');
@@ -135,6 +135,51 @@ function channelCard(ch, idx, s) {
   wrap.appendChild(r4);
 
   return wrap;
+}
+
+function modelPicker(ch, idx) {
+  var box = el('div', 'pk');
+  var listId = 'models_' + idx + '_' + String(ch.id).replace(/[^A-Za-z0-9_]/g, '');
+  var inp = input(ch.model, function (v) { ch.model = v; }, 'deepseek-chat');
+  inp.setAttribute('list', listId);
+
+  var dl = document.createElement('datalist');
+  dl.id = listId;
+
+  var btn = el('button', 'mini', '拉取列表');
+  var tip = el('div', 'pk-tip', '');
+
+  btn.onclick = function () {
+    if (!ch.baseUrl) { tip.textContent = '先填 Base URL'; tip.style.color = '#c0281e'; return; }
+    tip.textContent = '正在向这个地址要模型列表…';
+    tip.style.color = '#8a7350';
+    btn.disabled = true;
+    chrome.runtime.sendMessage({ type: 'llm.models', payload: { channel: ch } }, function (r) {
+      btn.disabled = false;
+      if (!r || !r.ok) {
+        tip.textContent = '拉不到：' + ((r && r.error) || '无响应') + '　手填模型名一样能用';
+        tip.style.color = '#c0281e';
+        return;
+      }
+      var ms = (r.data && r.data.models) || [];
+      dl.innerHTML = '';
+      for (var i = 0; i < ms.length; i++) {
+        var o = document.createElement('option');
+        o.value = ms[i];
+        dl.appendChild(o);
+      }
+      tip.textContent = '拉到 ' + ms.length + ' 个模型，点一下输入框就能选；手填也照样可以';
+      tip.style.color = '#127a3d';
+      if (!ch.model && ms.length) { ch.model = ms[0]; inp.value = ms[0]; }
+      inp.focus();
+    });
+  };
+
+  box.appendChild(inp);
+  box.appendChild(btn);
+  box.appendChild(dl);
+  box.appendChild(tip);
+  return box;
 }
 
 function field(label, node) {

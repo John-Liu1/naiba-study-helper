@@ -113,6 +113,51 @@ async function chat(channel, messages, opts) {
   }
 }
 
+async function listModels(channel) {
+  if (!channel || !channel.baseUrl) throw new Error('先填 Base URL');
+  if (!channel.key && !isLocal(channel.baseUrl)) throw new Error('还没填 API Key');
+
+  var base = String(channel.baseUrl).trim().replace(/\/+$/, '');
+  var url = /\/models$/.test(base) ? base : base + '/models';
+
+  var controller = new AbortController();
+  var timer = setTimeout(function () { controller.abort(); }, 30000);
+
+  try {
+    var res = await fetch(url, {
+      method: 'GET',
+      headers: { 'Authorization': 'Bearer ' + (channel.key || 'none') },
+      signal: controller.signal
+    });
+    var text = await res.text();
+    if (!res.ok) {
+      var hint = '';
+      if (res.status === 401 || res.status === 403) hint = '（API Key 无效，或这家不允许列模型）';
+      if (res.status === 404) hint = '（这个地址没有 /models，只能手填模型名）';
+      throw new Error('HTTP ' + res.status + ' ' + hint + ' ' + text.slice(0, 200));
+    }
+    var json = JSON.parse(text);
+    var arr = (json && (json.data || json.models)) || [];
+    var out = [];
+    for (var i = 0; i < arr.length; i++) {
+      var it = arr[i];
+      var id = typeof it === 'string' ? it : (it && (it.id || it.name));
+      if (id) out.push(String(id));
+    }
+    out.sort();
+    if (!out.length) throw new Error('返回里没有模型列表，只能手填模型名');
+    return out;
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('请求超时（30 秒）');
+    if (/Failed to fetch/i.test(String(e.message))) {
+      throw new Error('连不上该地址。先在设置页点「保存」并在弹窗里允许访问该站点');
+    }
+    throw e;
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
   (async function () {
     try {
@@ -153,6 +198,14 @@ chrome.runtime.onMessage.addListener(function (msg, sender, sendResponse) {
           ok: true,
           data: { ms: Date.now() - t0, reply: String(r).trim().slice(0, 60), model: ch2.model }
         });
+        return;
+      }
+
+      if (msg.type === 'llm.models') {
+        var s3 = await getSettings();
+        var ch3 = msg.payload.channel || findChannel(s3, msg.payload.channelId);
+        var models = await listModels(ch3);
+        sendResponse({ ok: true, data: { models: models } });
         return;
       }
 

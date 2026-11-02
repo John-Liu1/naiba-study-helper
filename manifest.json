@@ -2,9 +2,11 @@
   "manifest_version": 3,
   "name": "学习通-无敌智慧奶娃学习助手",
   "short_name": "无敌智慧奶娃",
-  "version": "0.4.9",
+  "version": "0.4.10",
   "description": "用你自己的大模型辅助学习通章节学习：扫描任务点、解析题目、作答与核对。",
-  "permissions": ["storage"],
+  "permissions": [
+    "storage"
+  ],
   "host_permissions": [
     "*://*.chaoxing.com/*"
   ],
@@ -17,21 +19,33 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://*.chaoxing.com/*"],
-      "js": ["content/bridge.js"],
+      "matches": [
+        "*://*.chaoxing.com/*"
+      ],
+      "js": [
+        "content/bridge.js"
+      ],
       "all_frames": true,
       "run_at": "document_start"
     },
     {
-      "matches": ["*://*.chaoxing.com/*"],
-      "js": ["content/early.js"],
+      "matches": [
+        "*://*.chaoxing.com/*"
+      ],
+      "js": [
+        "content/early.js"
+      ],
       "all_frames": true,
       "run_at": "document_start",
       "world": "MAIN"
     },
     {
-      "matches": ["*://*.chaoxing.com/*"],
-      "js": ["content/main.js"],
+      "matches": [
+        "*://*.chaoxing.com/*"
+      ],
+      "js": [
+        "content/main.js"
+      ],
       "all_frames": true,
       "run_at": "document_idle",
       "world": "MAIN"
@@ -45,8 +59,14 @@
   },
   "web_accessible_resources": [
     {
-      "resources": ["assets/wallpaper.jpg", "icons/icon48.png", "icons/icon128.png"],
-      "matches": ["*://*.chaoxing.com/*"]
+      "resources": [
+        "assets/wallpaper.jpg",
+        "icons/icon48.png",
+        "icons/icon128.png"
+      ],
+      "matches": [
+        "*://*.chaoxing.com/*"
+      ]
     }
   ],
   "options_page": "options.html",
