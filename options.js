@@ -13,6 +13,22 @@ var state = { settings: null };
 
 var MODEL_CACHE = {};
 
+var EXTRA_MODELS = [
+  { host: 'open.bigmodel.cn', names: ['glm-4.7-flash', 'glm-4.6-flash', 'glm-4.5-flash', 'glm-4-flash', 'glm-zero-preview'] },
+  { host: 'api.deepseek.com', names: ['deepseek-chat', 'deepseek-reasoner'] },
+  { host: 'dashscope.aliyuncs.com', names: ['qwen-plus', 'qwen-max', 'qwen-turbo', 'qwen-long'] },
+  { host: 'api.moonshot.cn', names: ['moonshot-v1-8k', 'moonshot-v1-32k', 'moonshot-v1-128k'] },
+  { host: 'localhost', names: ['qwen2.5:7b', 'qwen2.5:3b', 'llama3.2:3b'] }
+];
+
+function extrasFor(baseUrl) {
+  var u = String(baseUrl || '').toLowerCase();
+  for (var i = 0; i < EXTRA_MODELS.length; i++) {
+    if (u.indexOf(EXTRA_MODELS[i].host) >= 0) return EXTRA_MODELS[i].names.slice();
+  }
+  return [];
+}
+
 document.addEventListener('mousedown', function (e) {
   var menus = document.querySelectorAll('.pk-menu');
   for (var i = 0; i < menus.length; i++) {
@@ -171,33 +187,52 @@ function modelPicker(ch, idx) {
   function renderMenu() {
     var q = String(inp.value || '').trim().toLowerCase();
     menu.innerHTML = '';
-    if (!models.length) {
+
+    var extras = [];
+    var all = extrasFor(ch.baseUrl);
+    for (var e = 0; e < all.length; e++) {
+      if (models.indexOf(all[e]) < 0) extras.push(all[e]);
+    }
+
+    if (!models.length && !extras.length) {
       menu.appendChild(el('div', 'pk-opt none', '还没有列表，先点右边「拉取列表」'));
       return;
     }
-    var head = el('div', 'pk-head', '共 ' + models.length + ' 个模型' + (q ? '，含「' + q + '」的排前面' : ''));
-    menu.appendChild(head);
 
-    var hitList = [];
-    var restList = [];
-    for (var i = 0; i < models.length; i++) {
-      var m = models[i];
-      if (q && m.toLowerCase().indexOf(q) >= 0) hitList.push(m);
-      else restList.push(m);
+    if (models.length) {
+      menu.appendChild(el('div', 'pk-head', '接口返回 ' + models.length + ' 个' + (q ? '，含「' + q + '」的排前面' : '')));
+      var hit = [];
+      for (var i = 0; i < models.length; i++) {
+        if (!q || models[i].toLowerCase().indexOf(q) >= 0) hit.push(models[i]);
+      }
+      if (q && !hit.length) {
+        menu.appendChild(el('div', 'pk-opt none', '接口列表里没有「' + q + '」，下面列出全部'));
+        hit = models.slice();
+      }
+      for (var j = 0; j < hit.length; j++) {
+        (function (mm) {
+          var d = el('div', 'pk-opt' + (mm === ch.model ? ' on' : ''), mm);
+          d.title = mm;
+          d.onmousedown = function (ev) { ev.preventDefault(); pick(mm); };
+          menu.appendChild(d);
+        })(hit[j]);
+      }
     }
 
-    var show = q ? hitList : models;
-    if (q && !hitList.length) {
-      menu.appendChild(el('div', 'pk-opt none', '没有和「' + q + '」匹配的，下面列出全部'));
-      show = models;
+    var ex = [];
+    for (var k = 0; k < extras.length; k++) {
+      if (!q || extras[k].toLowerCase().indexOf(q) >= 0) ex.push(extras[k]);
     }
-    for (var j = 0; j < show.length; j++) {
-      (function (mm) {
-        var d = el('div', 'pk-opt' + (mm === ch.model ? ' on' : ''), mm);
-        d.title = mm;
-        d.onmousedown = function (e) { e.preventDefault(); pick(mm); };
-        menu.appendChild(d);
-      })(show[j]);
+    if (ex.length) {
+      menu.appendChild(el('div', 'pk-div', models.length ? '接口里没列出、但常用的型号（选完点「连通性测试」确认）' : '还没拉列表。下面是这家常见的型号，选完点「连通性测试」确认'));
+      for (var n = 0; n < ex.length; n++) {
+        (function (mm) {
+          var d = el('div', 'pk-opt' + (mm === ch.model ? ' on' : ''), mm);
+          d.title = mm;
+          d.onmousedown = function (ev) { ev.preventDefault(); pick(mm); };
+          menu.appendChild(d);
+        })(ex[n]);
+      }
     }
   }
 
