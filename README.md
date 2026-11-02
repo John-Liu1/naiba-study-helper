@@ -506,6 +506,18 @@ Copyright (c) 2026 John-Liu1
 保留下来的是这类**方法性做法**：把 iframe 父元素上的 `.ans-job-icon` 当作任务点标记、同一时刻只驱动一个播放器、每 2.5 秒重新查询并「踢」一下 `play()`、按 90% 进度判定完成。这些属于功能与思路，著作权法不保护；受保护的是具体代码表达，而表达已经换掉了。
 
 如果你仍想更稳妥，可以在发布说明里写一句「思路参考了社区同类脚本」，无需取得授权。
+**核查方法与结果（2026-11-02）。** 把参考脚本全文与本项目的 `content/main.js`、`content/early.js`、`content/bridge.js`、`background.js`、`options.js`、`popup.js` 分别做词法归一（去掉注释、字符串字面量替换为占位符），再求「两侧完全相同的连续 token 串」最长长度：
+
+| 文件 | 最长公共 token 串 | 说明 |
+| --- | --- | --- |
+| content/main.js | 0 | 一个 token 都对不上 |
+| content/early.js | 0 | |
+| content/bridge.js | 0 | |
+| background.js | 0 | |
+| popup.js | 0 | |
+| options.js | 10 | 内容是 `: [S, S, S, S]` 这类数组字面量片段，属结构巧合 |
+
+另外，长度 ≥ 20 字符的字符串字面量，两侧重合数量为 **0**。换句话说，除了 DOM 选择器这类短字符串（`.ans-job-icon`、`.TiMu`、`#prevNextFocusNext`，它们是页面事实，人人都得这么写），没有一段代码、没有一条长字符串是从参考脚本搬过来的。
 
 ### 12.4 二次分发
 
