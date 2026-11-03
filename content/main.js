@@ -528,7 +528,52 @@
     var type = detectType(typeText);
     if (!options.length && type !== T.JUDGE && type !== T.BLANK) type = T.ESSAY;
 
-    return { idx: idx, el: el, title: clean(rawTitle), type: type, options: options };
+    var q = { idx: idx, el: el, title: clean(rawTitle), type: type, options: options };
+    q.blanks = blanksOf(q);
+    return q;
+  }
+
+  // 一道填空题里到底有几个空。
+  // 页面摆了 textarea / input 时以元素个数为准（最可靠）；只有一个输入框、但题面写着 (1)(2)(3) 编号时，
+  // 才按编号数去推。以前根本不数，四个空都填同一个答案，交上去就是四个一模一样的错。
+  function blankEls(q) {
+    var out = [];
+    var el = q && q.el;
+    if (!el) return out;
+    var sels = ["textarea", "input[type=text]", "input:not([type])"];
+    for (var i = 0; i < sels.length; i++) {
+      var list = null;
+      try { list = el.querySelectorAll(sels[i]); } catch (e) { continue; }
+      for (var j = 0; j < list.length; j++) {
+        var n = list[j];
+        if (q.type !== T.BLANK && q.type !== T.ESSAY && n.closest(".before-after,.answerBg,.mark_letter")) continue;
+        if (out.indexOf(n) >= 0) continue;
+        out.push(n);
+      }
+    }
+    return out;
+  }
+
+  function countBlanksByText(t) {
+    t = String(t || "");
+    var seen = {}, m, n = 0;
+    var re1 = /[（(]s*(d+)s*[）)]/g;
+    while ((m = re1.exec(t))) seen[m[1]] = 1;
+    for (var k in seen) n++;
+    if (n >= 2) return n;
+    var re2 = /_{2,}|（s*）|(s*)/g, c2 = 0;
+    while ((m = re2.exec(t))) c2++;
+    return c2;
+  }
+
+  function blanksOf(q) {
+    var n = blankEls(q).length;
+    if (n >= 2) return n;
+    if (q && q.type === T.BLANK) {
+      var t = countBlanksByText(q.title);
+      if (t >= 2) return t;
+    }
+    return Math.max(n, 1);
   }
 
   function grabMaterial() {
@@ -559,12 +604,21 @@
       for (var j = 0; j < q.options.length; j++) {
         line += '\n  ' + q.options[j].letter + '. ' + q.options[j].text;
       }
+      if ((q.type === T.BLANK || q.type === T.ESSAY) && (q.blanks || 1) > 1) {
+        line += "\n  ★ 本题有 " + q.blanks + " 个空（题面里的 (1)(2)(3)… 就是编号），必须按空序给出 " +
+          q.blanks + " 个答案，用 ||| 分隔；每个空各答各的，绝不能把同一个答案复制 " + q.blanks + " 遍。";
+      }
+      if ((q.type === T.BLANK || q.type === T.ESSAY) && /空格|逗号|分隔/.test(q.title)) {
+        line += "\n  ★ 题面要求了答案格式（比如「中间用空格分隔」「用逗号分隔」），照它写，别自己删掉空格和标点。";
+      }
       parts.push(line);
     }
     parts.push('【输出要求】\n只输出一个 JSON 对象，不要解释、不要代码块。格式：\n' +
       '{"answers":[{"i":0,"a":"B","r":"依据"}]}\n' +
       'i 是上面的题号（从 0 开始），必须覆盖每一道题。' +
       'a 的写法：单选给单个字母如 "B"；多选给连续字母如 "ACD"；判断给 "对" 或 "错"；填空/简答直接给答案文本，多个空用 ||| 分隔。' +
+      '一道题有几个空就给几个答案，用 ||| 分隔，个数必须等于空的个数，不要拿同一个答案凑数。' +
+      '题目要求的格式（空格、逗号、单位）原样保留，不要删。' +
       '即使不确定也要给出最可能的答案，不要留空。');
     return parts.join('\n\n');
   }
@@ -609,7 +663,11 @@
       if (/正确|对/.test(a)) return '对';
       return a;
     }
-    return a.replace(/\s+/g, '');
+    // 填空题/简答题的答案常常靠空格、标点表达格式（「中间用空格分隔」）。
+    // 以前这里把空白全删了：1 1 1 2 2 3 3 变成 1112233 再填进空里，格式直接被毁，必然判错。
+    return String(a).split(/\|\|\|/).map(function (x) {
+      return x.replace(/\s*\n\s*/g, " ").replace(/[ \t]{2,}/g, " ").trim();
+    }).join("|||");
   }
 
   async function askOnce(qs, withMaterial, sampleIdx, channelId) {
@@ -715,36 +773,101 @@
     return 0;
   }
 
-  function fillText(q, ans) {
-    var tas = q.el.querySelectorAll('textarea');
-    if (!tas.length) {
-      var ce = q.el.querySelector('[contenteditable="true"]');
-      if (ce) { ce.innerHTML = esc(ans); return 1; }
-      return 0;
+  // 把值塞进一个输入框：UEditor 优先，其次走原生 setter + input/change 事件
+  function setFieldValue(el, val) {
+    if (el.isContentEditable) {
+      try { el.focus(); el.innerHTML = esc(val); el.dispatchEvent(new Event("input", { bubbles: true })); return true; } catch (e0) {}
     }
-    var parts = String(ans).split(/\|\|\|/);
-    for (var i = 0; i < tas.length; i++) {
-      var ta = tas[i];
-      var val = parts[i] !== undefined ? parts[i] : (parts[0] || '');
-      var done = false;
-      try {
-        if (window.UE && typeof window.UE.getEditor === 'function' && ta.name) {
-          var ed = window.UE.getEditor(ta.name);
-          if (ed && typeof ed.setContent === 'function') { ed.setContent(val); done = true; }
-        }
-      } catch (e1) {}
-      if (!done) {
-        try {
-          var view = ta.ownerDocument.defaultView;
-          var setter = Object.getOwnPropertyDescriptor(view.HTMLTextAreaElement.prototype, 'value').set;
-          setter.call(ta, val);
-          ta.dispatchEvent(new Event('input', { bubbles: true }));
-          ta.dispatchEvent(new Event('change', { bubbles: true }));
-          done = true;
-        } catch (e2) {}
+    var done = false;
+    try {
+      if (window.UE && typeof window.UE.getEditor === "function" && el.name) {
+        var ed = window.UE.getEditor(el.name);
+        if (ed && typeof ed.setContent === "function") { ed.setContent(val); done = true; }
       }
+    } catch (e1) {}
+    if (!done) {
+      try {
+        var view = el.ownerDocument.defaultView;
+        var proto = el.tagName === "TEXTAREA" ? view.HTMLTextAreaElement.prototype : view.HTMLInputElement.prototype;
+        var setter = Object.getOwnPropertyDescriptor(proto, "value").set;
+        setter.call(el, val);
+        el.dispatchEvent(new Event("input", { bubbles: true }));
+        el.dispatchEvent(new Event("change", { bubbles: true }));
+        done = true;
+      } catch (e2) {}
+    }
+    return done;
+  }
+
+  function fillText(q, ans) {
+    var fields = blankEls(q);
+    var parts = String(ans).split(/\|\|\|/).map(function (x) { return x.trim(); });
+    if (!fields.length) {
+      // 有的页面一个空就是一个 contenteditable 框，不是一个 textarea
+      var all = q.el.querySelectorAll("[contenteditable='true']");
+      for (var c = 0; c < all.length; c++) fields.push(all[c]);
+      if (!fields.length) return 0;
+      if (fields.length === 1) { fields[0].innerHTML = esc(ans); return 1; }
+    }
+    var nb = Math.max(fields.length, q.blanks || 1);
+    if (nb > 1 && parts.length < nb) {
+      // 以前这里静默把第一个答案抄进每个空，交上去就是「四个空一模一样」，直接零分。
+      log("第" + ((q.idx || 0) + 1) + "题有 " + nb + " 个空，但只拿到 " + parts.length + " 个答案，剩下几个空只能先填第一个（多半不对）", "warn");
+    }
+    for (var i = 0; i < fields.length; i++) {
+      var val = parts[i] !== undefined ? parts[i] : (parts[0] || "");
+      setFieldValue(fields[i], val);
     }
     return 1;
+  }
+
+  // 模型常把「一道四个空的填空题」当成一个空来答，四个空填一模一样。
+  // 发现答案段数少于空数，就单独把这道题再问一遍，只要求它按空序给出 N 段，不许复制。
+  async function repairBlanks(qs, plan) {
+    if (!plan || !plan.answers || !plan.answers.length) return plan;
+    var bad = [];
+    for (var i = 0; i < qs.length; i++) {
+      var q = qs[i];
+      if (q.type !== T.BLANK && q.type !== T.ESSAY) continue;
+      var nb = q.blanks || 1;
+      if (nb < 2) continue;
+      var cur = plan.answers[i] && plan.answers[i].a ? String(plan.answers[i].a) : "";
+      var got = cur.split(/\|\|\|/).filter(function (x) { return String(x).trim(); }).length;
+      if (got < nb) bad.push({ i: i, q: q, nb: nb });
+    }
+    if (!bad.length) return plan;
+
+    for (var k = 0; k < bad.length; k++) {
+      var it = bad[k], qq = it.q;
+      setStage("重答第" + (it.i + 1) + "题的 " + it.nb + " 个空");
+      var msg = "【题目】第0题 [" + typeName(qq.type) + "] " + qq.title +
+        "\n\n【只做一件事】这道题有 " + it.nb + " 个空（题面里的 (1)(2)(3)… 是编号）。按空的顺序给出 " + it.nb +
+        " 个答案，用 ||| 分隔。每个空各答各的，四个空就是四段不同的内容；题目要求的空格、逗号、单位原样保留。" +
+        "\n只输出 JSON：" + '{"answers":[{"i":0,"a":"答案1|||答案2|||…"}]}' + "，不要解释。";
+      try {
+        var data = await bg("llm.chat", {
+          channelId: st.settings.activeChannel,
+          messages: [
+            { role: "system", content: SYS_PROMPT },
+            { role: "user", content: msg }
+          ],
+          opts: { temperature: 0.2, maxTokens: 1200 }
+        });
+        var got2 = parseAnswers(data.text, 1);
+        var a2 = got2[0] && got2[0].a ? String(got2[0].a).trim() : "";
+        var n2 = a2.split(/\|\|\|/).filter(function (x) { return String(x).trim(); }).length;
+        if (n2 >= it.nb) {
+          plan.answers[it.i] = { a: a2, reason: plan.answers[it.i] ? plan.answers[it.i].reason : "", level: "mid", votes: "重答" };
+          log("第" + (it.i + 1) + "题重答出了 " + n2 + " 个空的答案", "ok");
+        } else {
+          log("第" + (it.i + 1) + "题重答还是只有 " + n2 + " 段，凑不齐 " + it.nb + " 个空", "warn");
+        }
+      } catch (e) {
+        log("重答第" + (it.i + 1) + "题失败：" + (e && e.message || e), "warn");
+      }
+      await sleep(Number(st.settings.delayMs) || 400);
+    }
+    return plan;
   }
 
   function fill(qs, plan) {
@@ -2022,6 +2145,9 @@
       }
 
       var plan = await solve(qs);
+      plan = await repairBlanks(qs, plan);
+      st.plan = plan;
+      renderQuestions();
       var filledN = fill(qs, plan);
       await sleep(500);
       await decideSubmit(plan, filledN);
