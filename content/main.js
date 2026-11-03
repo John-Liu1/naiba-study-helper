@@ -530,7 +530,38 @@
 
     var q = { idx: idx, el: el, title: clean(rawTitle), type: type, options: options };
     q.blanks = blanksOf(q);
+    q.tableText = tablesText(el);
+    q.images = imgCount(el);
     return q;
+  }
+
+  // 题目正文里可能有 <table>（矩阵题、填表题）。不把格子里的数字抓出来，模型只看到
+  // 「写出（1）处的 7 个数字」这句话，连表长什么样都不知道，只能瞎编一排数字。
+  function tablesText(el) {
+    var out = [];
+    var tbs = null;
+    try { tbs = el ? el.querySelectorAll("table") : []; } catch (e) { return ""; }
+    for (var i = 0; i < tbs.length && i < 4; i++) {
+      var rows = tbs[i].querySelectorAll("tr");
+      if (!rows.length) continue;
+      var lines2 = [];
+      for (var r = 0; r < rows.length && r < 40; r++) {
+        var cells = rows[r].querySelectorAll("th,td");
+        var arr = [];
+        for (var c = 0; c < cells.length && c < 40; c++) {
+          var t = clean(textOf(cells[c]));
+          arr.push(t === "" ? "." : t);
+        }
+        if (arr.length) lines2.push(arr.join(" | "));
+      }
+      if (lines2.length) out.push("表" + (i + 1) + "：\n" + lines2.join("\n"));
+      if (out.join("\n").length > 3000) break;
+    }
+    return out.join("\n\n").slice(0, 3000);
+  }
+
+  function imgCount(el) {
+    try { return el ? el.querySelectorAll("img").length : 0; } catch (e) { return 0; }
   }
 
   // 一道填空题里到底有几个空。
@@ -610,6 +641,11 @@
       }
       if ((q.type === T.BLANK || q.type === T.ESSAY) && /空格|逗号|分隔/.test(q.title)) {
         line += "\n  ★ 题面要求了答案格式（比如「中间用空格分隔」「用逗号分隔」），照它写，别自己删掉空格和标点。";
+      }
+      if (q.tableText) {
+        line += "\n  【题目里的表格（按行列原样抄给你，空白格用 . 表示）】\n" + q.tableText;
+        line += "\n  ★ 这是填表/矩阵题：先在草稿里逐格推，再给答案。动态规划表往右、往下都不会变小，" +
+          "给出来的数字必须满足这一点；不要出现一排从 1 掉到 0 的数，也不要直接照抄题面里的某个字符串。";
       }
       parts.push(line);
     }
@@ -1957,6 +1993,12 @@
     }
     var pq0 = findPopQuiz(document);
     L.push('本页弹题：' + (pq0 ? '发现「' + (pq0.textContent || '').replace(/\s+/g, '').slice(0, 40) + '」' : '没有'));
+    var qn0 = qNodes(document);
+    for (var qi = 0; qi < qn0.length && qi < 6; qi++) {
+      L.push("题目#" + (qi + 1) + " 表格=" + qn0[qi].querySelectorAll("table").length +
+        " 图片=" + qn0[qi].querySelectorAll("img").length +
+        " 输入框=" + blankEls({ el: qn0[qi], type: T.BLANK }).length);
+    }
     var fs = document.querySelectorAll('iframe');
     L.push('本页 iframe 数量：' + fs.length);
     for (var j = 0; j < fs.length && j < 12; j++) {
